@@ -2,9 +2,9 @@
 #define EXEC_H
 
 #include "defs.h"
+#include "freecmd.h"
 #include "types.h"
 #include "utils.h"
-#include "freecmd.h"
 
 extern struct cmd *parsed_pipe;
 
