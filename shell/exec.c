@@ -76,26 +76,18 @@ void exec_cmd(struct cmd *cmd) {
     struct execcmd *r;
     struct pipecmd *p;
 
-    printf_debug("Executing command: %s, pid: %i, type: %i\n", cmd->scmd,
-                 cmd->pid, cmd->type);
-
-    char *args[3] = {"ls", "-l", NULL};
     switch (cmd->type) {
         case EXEC:
-            // spawns a command
-            e = (struct execcmd *)parse_line(cmd->scmd);
+            e = (struct execcmd *)cmd;
 
-            printf("Executing command: %s\n", e->argv[0]);
             execvp(e->argv[0], e->argv);
-            _exit(-1);
             break;
 
         case BACK: {
-            // runs a command in background
-            //
-            // Your code here
-            printf("Background process are not yet implemented\n");
-            _exit(-1);
+            b = (struct backcmd *)cmd;
+
+            exec_cmd(b->c);
+
             break;
         }
 
