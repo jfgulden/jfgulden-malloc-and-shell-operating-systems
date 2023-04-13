@@ -40,25 +40,16 @@ int run_cmd(char *cmd) {
     // stores the pid of the process
     parsed->pid = p;
 
-    // background process special treatment
-    // Hint:
-    // - check if the process is
-    //		going to be run in the 'back'
-    // - print info about it with
-    // 	'print_back_info()'
-    //
-    // Your code here
+    waitpid(-1, NULL, WNOHANG);
 
     if (parsed->type == BACK) {
         print_back_info(parsed);
-        return 0;
+    } else {
+        waitpid(p, &status, 0);
+        print_status_info(parsed);
     }
 
-    // waits for the process to finish
-    waitpid(p, &status, 0);
-
-    print_status_info(parsed);
-
+    printf("estoy en el free del runcmd\n");
     free_command(parsed);
 
     return 0;

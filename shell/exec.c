@@ -58,9 +58,12 @@ static void set_environ_vars(char **eargv, int eargc) {
 // - if O_CREAT is used, add S_IWUSR and S_IRUSR
 // 	to make it a readable normal file
 static int open_redir_fd(char *file, int flags) {
-    // Your code here
-
-    return -1;
+    int fd = open(file, flags | O_CLOEXEC , S_IWUSR | S_IRUSR);
+    if (fd < 0) {
+        perror("error opening file");
+        exit(-1);
+    }
+    return fd;
 }
 
 // executes a command - does not return
@@ -79,15 +82,14 @@ void exec_cmd(struct cmd *cmd) {
     switch (cmd->type) {
         case EXEC:
             e = (struct execcmd *)cmd;
-
             execvp(e->argv[0], e->argv);
+            perror("fallo al ejecutar el comando");
+            exit(-1);
             break;
 
         case BACK: {
             b = (struct backcmd *)cmd;
-
             exec_cmd(b->c);
-
             break;
         }
 
@@ -99,8 +101,31 @@ void exec_cmd(struct cmd *cmd) {
             // is greater than zero
             //
             // Your code here
-            printf("Redirections are not yet implemented\n");
-            _exit(-1);
+            r = (struct execcmd *)cmd;
+
+            if (strlen(r->out_file) > 0) {
+                int fd = open_redir_fd(r->out_file, O_WRONLY | O_CREAT);
+                dup2(fd, STDOUT_FILENO);
+
+            }
+
+            if (strlen(r->in_file) > 0) {
+                int fd = open_redir_fd(r->in_file, O_RDONLY);
+                dup2(fd, STDIN_FILENO);
+            }
+
+            if (strlen(r->err_file) > 0) {
+                if (strcmp(r->err_file, "&1") == 0) {
+                    dup2(STDOUT_FILENO, STDERR_FILENO);
+                } else {
+                    int fd = open_redir_fd(r->err_file, O_WRONLY | O_CREAT);
+                    dup2(fd, STDERR_FILENO);
+                }
+            }
+
+            execvp(r->argv[0], r->argv);
+            perror("fallo al ejecutar el comando");
+            exit(-1);
             break;
         }
 
@@ -108,7 +133,34 @@ void exec_cmd(struct cmd *cmd) {
             // pipes two commands
             //
             // Your code here
-            printf("Pipes are not yet implemented\n");
+            p = (struct pipecmd *)cmd;
+
+            int fds[2];
+            if (pipe(fds) < 0) {
+                perror("error creating pipe");
+                exit(-1);
+            }
+
+
+            int izq = fork();
+            if(izq < 0){
+                perror("error en el fork");
+            }
+
+            if(izq == 0){
+                exec_cmd(p->leftcmd);
+            } 
+
+            int der = fork();
+            if(der < 0){
+                perror("error en el fork");
+            }
+            
+            if (der == 0) {
+                exec_cmd(p->rightcmd);
+            } 
+            waitpid(-1,NULL,0);
+            waitpid(-1,NULL,0);
 
             // free the memory allocated
             // for the pipe tree structure
