@@ -58,7 +58,7 @@ static void set_environ_vars(char **eargv, int eargc) {
 // - if O_CREAT is used, add S_IWUSR and S_IRUSR
 // 	to make it a readable normal file
 static int open_redir_fd(char *file, int flags) {
-    int fd = open(file, flags | O_CLOEXEC , S_IWUSR | S_IRUSR);
+    int fd = open(file, flags | O_CLOEXEC, S_IWUSR | S_IRUSR);
     if (fd < 0) {
         perror("error opening file");
         exit(-1);
@@ -106,7 +106,6 @@ void exec_cmd(struct cmd *cmd) {
             if (strlen(r->out_file) > 0) {
                 int fd = open_redir_fd(r->out_file, O_WRONLY | O_CREAT);
                 dup2(fd, STDOUT_FILENO);
-
             }
 
             if (strlen(r->in_file) > 0) {
@@ -130,9 +129,6 @@ void exec_cmd(struct cmd *cmd) {
         }
 
         case PIPE: {
-            // pipes two commands
-            //
-            // Your code here
             p = (struct pipecmd *)cmd;
 
             int fds[2];
@@ -141,30 +137,30 @@ void exec_cmd(struct cmd *cmd) {
                 exit(-1);
             }
 
-
             int izq = fork();
-            if(izq < 0){
+            if (izq < 0) {
                 perror("error en el fork");
             }
 
-            if(izq == 0){
+            if (izq == 0) {
                 exec_cmd(p->leftcmd);
-            } 
+            }
 
             int der = fork();
-            if(der < 0){
+            if (der < 0) {
                 perror("error en el fork");
             }
-            
+
             if (der == 0) {
                 exec_cmd(p->rightcmd);
-            } 
-            waitpid(-1,NULL,0);
-            waitpid(-1,NULL,0);
+            }
+            waitpid(-1, NULL, 0);
+            waitpid(-1, NULL, 0);
 
-            // free the memory allocated
-            // for the pipe tree structure
+            close(fds[0]);
+            close(fds[1]);
             free_command(parsed_pipe);
+            exit(0);
 
             break;
         }
