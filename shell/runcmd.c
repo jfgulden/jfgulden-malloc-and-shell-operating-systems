@@ -49,7 +49,6 @@ int run_cmd(char *cmd) {
         print_status_info(parsed);
     }
 
-    printf("estoy en el free del runcmd\n");
     free_command(parsed);
 
     return 0;

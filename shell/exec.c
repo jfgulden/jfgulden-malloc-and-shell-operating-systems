@@ -143,6 +143,10 @@ void exec_cmd(struct cmd *cmd) {
             }
 
             if (izq == 0) {
+                dup2(fds[1], STDOUT_FILENO);
+                close(fds[0]);
+                close(fds[1]);
+
                 exec_cmd(p->leftcmd);
             }
 
@@ -152,14 +156,22 @@ void exec_cmd(struct cmd *cmd) {
             }
 
             if (der == 0) {
+                dup2(fds[0], STDIN_FILENO);
+                close(fds[0]);
+                close(fds[1]);
+
+                p->rightcmd = parse_line(p->rightcmd->scmd);
                 exec_cmd(p->rightcmd);
             }
-            waitpid(-1, NULL, 0);
-            waitpid(-1, NULL, 0);
 
             close(fds[0]);
             close(fds[1]);
+
+            waitpid(-1, NULL, 0);
+            waitpid(-1, NULL, 0);
+
             free_command(parsed_pipe);
+
             exit(0);
 
             break;
