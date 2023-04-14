@@ -83,7 +83,7 @@ void exec_cmd(struct cmd *cmd) {
         case EXEC:
             e = (struct execcmd *)cmd;
             execvp(e->argv[0], e->argv);
-            perror("fallo al ejecutar el comando");
+            //perror("fallo al ejecutar el comando");
             exit(-1);
             break;
 
@@ -104,7 +104,7 @@ void exec_cmd(struct cmd *cmd) {
             r = (struct execcmd *)cmd;
 
             if (strlen(r->out_file) > 0) {
-                int fd = open_redir_fd(r->out_file, O_WRONLY | O_CREAT);
+                int fd = open_redir_fd(r->out_file, O_WRONLY | O_CREAT | O_TRUNC);
                 dup2(fd, STDOUT_FILENO);
             }
 
@@ -117,7 +117,7 @@ void exec_cmd(struct cmd *cmd) {
                 if (strcmp(r->err_file, "&1") == 0) {
                     dup2(STDOUT_FILENO, STDERR_FILENO);
                 } else {
-                    int fd = open_redir_fd(r->err_file, O_WRONLY | O_CREAT);
+                    int fd = open_redir_fd(r->err_file, O_WRONLY | O_CREAT | O_TRUNC);
                     dup2(fd, STDERR_FILENO);
                 }
             }
