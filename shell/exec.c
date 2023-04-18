@@ -44,7 +44,17 @@ static void get_environ_value(char *arg, char *value, int idx) {
 // 	get the index where the '=' is
 // - 'get_environ_*()' can be useful here
 static void set_environ_vars(char **eargv, int eargc) {
-    // Your code here
+    for (int i = 0; i < eargc; i++){
+        int position_equal = block_contains(eargv[i], '=');
+        char key[ARGSIZE];
+        char value[ARGSIZE];
+        get_environ_key(eargv[i], key);
+        get_environ_value(eargv[i], value, position_equal);
+        if (position_equal >= 0){
+            if(setenv(key, value, 1) == -1)  
+                return;
+        }
+    }
 }
 
 // opens the file in which the stdin/stdout/stderr
@@ -79,9 +89,11 @@ void exec_cmd(struct cmd *cmd) {
     struct execcmd *r;
     struct pipecmd *p;
 
+
     switch (cmd->type) {
         case EXEC:
             e = (struct execcmd *)cmd;
+            set_environ_vars(e->eargv, e->eargc);
             execvp(e->argv[0], e->argv);
             //perror("fallo al ejecutar el comando");
             exit(-1);
@@ -102,6 +114,7 @@ void exec_cmd(struct cmd *cmd) {
             //
             // Your code here
             r = (struct execcmd *)cmd;
+            set_environ_vars(r->eargv, r->eargc);
 
             if (strlen(r->out_file) > 0) {
                 int fd = open_redir_fd(r->out_file, O_WRONLY | O_CREAT | O_TRUNC);

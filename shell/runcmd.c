@@ -24,6 +24,7 @@ int run_cmd(char *cmd) {
     // "pwd" built-in call
     if (pwd(cmd)) return 0;
 
+    
     // parses the command line
     parsed = parse_line(cmd);
 
@@ -39,8 +40,8 @@ int run_cmd(char *cmd) {
 
     // stores the pid of the process
     parsed->pid = p;
-
-    waitpid(-1, NULL, WNOHANG);
+    
+    waitpid(-1, &status, WNOHANG);
 
     if (parsed->type == BACK) {
         print_back_info(parsed);
