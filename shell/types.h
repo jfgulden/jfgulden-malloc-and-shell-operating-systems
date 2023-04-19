@@ -18,9 +18,9 @@
  *  - scmd: a string representing the command before being parsed
  */
 struct cmd {
-    int type;
-    pid_t pid;
-    char scmd[BUFLEN];
+	int type;
+	pid_t pid;
+	char scmd[BUFLEN];
 };
 
 /*
@@ -45,16 +45,16 @@ struct cmd {
  * command to be executed has at least one redirection symbol (<, >, >>, >&)
  */
 struct execcmd {
-    int type;
-    pid_t pid;
-    char scmd[BUFLEN];
-    int argc;
-    int eargc;
-    char *argv[MAXARGS];
-    char *eargv[MAXARGS];
-    char out_file[FNAMESIZE];
-    char in_file[FNAMESIZE];
-    char err_file[FNAMESIZE];
+	int type;
+	pid_t pid;
+	char scmd[BUFLEN];
+	int argc;
+	int eargc;
+	char *argv[MAXARGS];
+	char *eargv[MAXARGS];
+	char out_file[FNAMESIZE];
+	char in_file[FNAMESIZE];
+	char err_file[FNAMESIZE];
 };
 
 /*
@@ -66,11 +66,11 @@ struct execcmd {
  * arg3"
  */
 struct pipecmd {
-    int type;
-    pid_t pid;
-    char scmd[BUFLEN];
-    struct cmd *leftcmd;
-    struct cmd *rightcmd;
+	int type;
+	pid_t pid;
+	char scmd[BUFLEN];
+	struct cmd *leftcmd;
+	struct cmd *rightcmd;
 };
 
 /*
@@ -85,10 +85,10 @@ struct pipecmd {
  * if the process to be executed in the background contains redirection symbols.
  */
 struct backcmd {
-    int type;
-    pid_t pid;
-    char scmd[BUFLEN];
-    struct cmd *c;
+	int type;
+	pid_t pid;
+	char scmd[BUFLEN];
+	struct cmd *c;
 };
 
 #endif  // TYPES_H
