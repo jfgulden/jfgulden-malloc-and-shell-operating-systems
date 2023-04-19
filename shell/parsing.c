@@ -1,4 +1,5 @@
 #include "parsing.h"
+
 #include <stdio.h>
 extern int status;
 
@@ -103,22 +104,26 @@ parse_environ_var(struct execcmd *c, char *arg)
 static char *
 expand_environ_var(char *arg)
 {
+	if (arg[0] != '$')
+		return arg;
+
 	if (strcmp(arg, "$?") == 0) {
 		sprintf(arg, "%d", status);
 		return arg;
 	}
-	if (arg[0] == '$') {
-		char *env = getenv(arg + 1);
-		if (env != NULL) {
-			size_t len = strlen(env);
-			if (len > strlen(arg)) {
-				arg = realloc(arg, len);
-			}
-			strcpy(arg, env);
-		} else {
-			arg[0] = '\0';
-		}
+
+	char *env = getenv(arg + 1);
+	if (env == NULL) {
+		arg[0] = '\0';
+		return arg;
 	}
+
+	size_t len = strlen(env);
+	if (len > strlen(arg)) {
+		arg = realloc(arg, len);
+	}
+	strcpy(arg, env);
+
 	return arg;
 }
 

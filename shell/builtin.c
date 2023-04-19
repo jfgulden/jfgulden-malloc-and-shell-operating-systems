@@ -1,4 +1,5 @@
 #include "builtin.h"
+
 #include "utils.h"
 
 extern char prompt[PRMTLEN];
@@ -10,10 +11,10 @@ extern char prompt[PRMTLEN];
 int
 exit_shell(char *cmd)
 {
-	if (strcmp(cmd, "exit") == 0) {
-		return 1;
-	}
-	return 0;
+	if (strcmp(cmd, "exit"))
+		return 0;
+
+	return 1;
 }
 
 // returns true if "chdir" was performed
@@ -34,24 +35,24 @@ cd(char *cmd)
 	if (strncmp(cmd, "cd", 2)) {
 		return 0;
 	}
+
+	char *dir;
+
 	if (cmd[2] == '\0') {
-		if (chdir(getenv("HOME"))) {
-			perror("Error al cambiar de directorio");
-		} else {
-			snprintf(prompt, sizeof prompt, "(%s)", getenv("HOME"));
-		}
-		return 1;
+		dir = getenv("HOME");
+	} else if (cmd[2] == ' ') {
+		dir = cmd + 3;
+	} else {
+		return 0;
 	}
-	if (cmd[2] == ' ') {
-		char *dir = cmd + 3;
-		if (chdir(dir)) {
-			perror("Error al cambiar de directorio");
-		} else {
-			snprintf(prompt, sizeof prompt, "(%s)", getcwd(NULL, 0));
-		}
-		return 1;
+
+	if (chdir(dir)) {
+		perror("Error al cambiar de directorio");
+	} else {
+		snprintf(prompt, sizeof prompt, "(%s)", getcwd(NULL, 0));
 	}
-	return 0;
+
+	return 1;
 }
 
 // returns true if 'pwd' was invoked
@@ -62,7 +63,7 @@ cd(char *cmd)
 int
 pwd(char *cmd)
 {
-	if (strcmp(cmd, "pwd") != 0) {
+	if (strcmp(cmd, "pwd")) {
 		return 0;
 	}
 	printf("%s\n", getcwd(NULL, 0));
