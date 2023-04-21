@@ -19,13 +19,16 @@
 #define CHAR_ESC '\033'
 
 void delete_char(void);
-void move_left(int* line_pos, int n_movs);
-void move_right(int* line_pos, int n_movs);
-void write_command_from_history(FILE* histfile, int* line_pos);
+int move_left(int n_movs);
+int move_right(int n_movs);
+void write_command_from_history(FILE* histfile);
+void render_line(int new_pos);
 
 /* Use this variable to remember original terminal attributes. */
 struct termios saved_attributes;
 char buffer[BUFLEN];
+
+int line_pos = 0;
 
 /* This bit inspired by:
  *
@@ -63,48 +66,48 @@ void delete_char() {
     write(STDOUT_FILENO, "\b \b", 3);
 }
 
-void delete_line(int* line_pos) {
-    move_right(line_pos, ARGSIZE);
-    for (int i = 0; i < *line_pos; i++) {
+void delete_line() {
+    int line_pos_aux = move_right(BUFLEN);
+    for (int i = 0; i < strlen(buffer); i++) {
         delete_char();
     }
 
-    *line_pos = 0;
-    memset(buffer, 0, BUFLEN);
+    // line_pos = 0;
+    // memset(buffer, 0, BUFLEN);
 }
 
-void move_left(int* line_pos, int n_movs) {
-    if (n_movs > *line_pos) {
-        n_movs = *line_pos;
+int move_left(int n_movs) {
+    if (n_movs > line_pos) {
+        n_movs = line_pos;
     }
 
     for (int i = 0; i < n_movs; i++) {
         write(STDOUT_FILENO, "\b", 1);
     }
 
-    *line_pos -= n_movs;
-
-    // move pointer left
+    return line_pos - n_movs;
 }
 
-void move_right(int* line_pos, int n_movs) {
-    if (n_movs > (int)strlen(buffer) - *line_pos) {
-        n_movs = strlen(buffer) - *line_pos;
+int move_right(int n_movs) {
+    if (n_movs > (int)strlen(buffer) - line_pos) {
+        n_movs = strlen(buffer) - line_pos;
     }
 
     for (int i = 0; i < n_movs; i++) {
         write(STDOUT_FILENO, "\033[C", 3);
     }
 
-    *line_pos += n_movs;
+    return line_pos + n_movs;
 }
 
 char* non_canonical_read_line(char* prompt) {
     char c;
-    int line_pos = 0;
+    line_pos = 0;
     int history_pos = 0;
 
-    char formatted_prompt[ARGSIZE];
+    memset(buffer, 0, BUFLEN);
+
+    char formatted_prompt[BUFLEN];
     snprintf(formatted_prompt, sizeof formatted_prompt, "%s %s %s\n", COLOR_RED,
              prompt, COLOR_RESET);
 
@@ -112,8 +115,6 @@ char* non_canonical_read_line(char* prompt) {
     write(STDOUT_FILENO, formatted_prompt, strlen(formatted_prompt));
     write(STDOUT_FILENO, "$ ", 2);
 #endif
-
-    memset(buffer, 0, BUFLEN);
 
     while (true) {
         read(STDIN_FILENO, &c, 1);
@@ -130,20 +131,23 @@ char* non_canonical_read_line(char* prompt) {
             return NULL;
         }
 
+        // tecla "Backspace"
         if (c == CHAR_DEL) {
-            // tecla "Backspace"
             if (line_pos == 0) {
-                // estamos al comienzo de la pantalla
                 continue;
             }
 
-            delete_char();
-            buffer[line_pos--] = '\0';
+            delete_line();
+
+            for (int i = line_pos; i < (int)strlen(buffer); i++) {
+                buffer[i - 1] = buffer[i];
+            }
+            buffer[strlen(buffer) - 1] = '\0';
+
+            render_line(line_pos - 1);
         }
 
         if (c == CHAR_ESC) {
-            // comienzo de una sequencia
-            // de escape
             char esc_seq;
             read(STDIN_FILENO, &esc_seq, 1);
 
@@ -152,28 +156,27 @@ char* non_canonical_read_line(char* prompt) {
             read(STDIN_FILENO, &esc_seq, 1);
 
             if (esc_seq == 'H') {
-                move_left(&line_pos, BUFLEN);
+                line_pos = move_left(BUFLEN);
             }
             if (esc_seq == 'F') {
-                move_right(&line_pos, BUFLEN);
+                line_pos = move_right(BUFLEN);
             }
 
-            // tecla 'Options+Left' en OSX o 'Ctrl+Left' en Linux
             if (esc_seq == '1') {
                 read(STDIN_FILENO, &esc_seq, 1);
                 read(STDIN_FILENO, &esc_seq, 1);
                 read(STDIN_FILENO, &esc_seq, 1);
                 if (esc_seq == 'D') {
-                    while (line_pos > 0 && buffer[line_pos - 2] != ' '){
-                        move_left(&line_pos, 1);
+                    while (line_pos > 0 && buffer[line_pos - 2] != ' ') {
+                        line_pos = move_left(1);
                     }
                 }
                 if (esc_seq == 'C') {
-                    while (line_pos < (int)strlen(buffer) && buffer[line_pos + 1] != ' '){
-                        move_right(&line_pos, 1);
+                    while (line_pos < (int)strlen(buffer) &&
+                           buffer[line_pos + 1] != ' ') {
+                        line_pos = move_right(1);
                     }
                 }
-                
             }
 
             if (esc_seq == 'A') {
@@ -184,14 +187,20 @@ char* non_canonical_read_line(char* prompt) {
                     continue;
                 }
 
-                delete_line(&line_pos);
+                delete_line();
+                line_pos = 0;
+                memset(buffer, 0, BUFLEN);
                 last_n_lines(histfile, history_pos);
-                write_command_from_history(histfile, &line_pos);
+                write_command_from_history(histfile);
             }
             if (esc_seq == 'B') {
                 history_pos--;
 
                 if (history_pos <= 0) {
+                    delete_line();
+                    line_pos = 0;
+                    memset(buffer, 0, BUFLEN);
+
                     history_pos = 0;
                     continue;
                 }
@@ -201,42 +210,49 @@ char* non_canonical_read_line(char* prompt) {
                     continue;
                 }
 
-                delete_line(&line_pos);
+                delete_line();
+                line_pos = 0;
+                memset(buffer, 0, BUFLEN);
                 last_n_lines(histfile, history_pos);
-                write_command_from_history(histfile, &line_pos);
+                write_command_from_history(histfile);
             }
             if (esc_seq == 'C') {
-                move_right(&line_pos, 1);
+                line_pos = move_right(1);
             }
             if (esc_seq == 'D') {
-                move_left(&line_pos, 1);
+                line_pos = move_left(1);
             }
         }
 
         if (isprint(c)) {  // si es visible
-            int copy_pos = line_pos;
-            move_right(&copy_pos, ARGSIZE);
+            delete_line();
+
             for (int i = strlen(buffer); i > line_pos; i--) {
-                delete_char();
                 buffer[i] = buffer[i - 1];
             }
-            write(STDOUT_FILENO, &c, 1);
-            write(STDOUT_FILENO, buffer + line_pos, strlen(buffer) - line_pos);
-            move_left(&copy_pos, strlen(buffer) - line_pos);
-            buffer[line_pos++] = c;
-            // for (int i = line_pos; i < strlen(buffer); i++) {
-            //     write(STDOUT_FILENO, buffer[i], 1);
-            // }
+            buffer[line_pos] = c;
+
+            render_line(line_pos + 1);
         }
     }
 }
 
-void write_command_from_history(FILE* histfile, int* line_pos) {
+void write_command_from_history(FILE* histfile) {
     char character = fgetc(histfile);
     while (character != '\n') {
         write(STDOUT_FILENO, &character, 1);
-        buffer[*line_pos] = character;
-        (*line_pos)++;
+        buffer[line_pos] = character;
+        line_pos++;
         character = fgetc(histfile);
     }
+}
+
+void render_line(int new_pos) {
+    for (int i = 0; i < strlen(buffer); i++) {
+        write(STDOUT_FILENO, &buffer[i], 1);
+    }
+
+    line_pos = strlen(buffer);
+
+    line_pos = move_left(line_pos - new_pos);
 }
