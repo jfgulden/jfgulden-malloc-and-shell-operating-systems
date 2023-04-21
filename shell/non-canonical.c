@@ -64,6 +64,7 @@ void delete_char() {
 }
 
 void delete_line(int* line_pos) {
+    move_right(line_pos, ARGSIZE);
     for (int i = 0; i < *line_pos; i++) {
         delete_char();
     }
@@ -144,12 +145,11 @@ char* non_canonical_read_line(char* prompt) {
             // comienzo de una sequencia
             // de escape
             char esc_seq;
-            assert(read(STDIN_FILENO, &esc_seq, 1) > 0);
+            read(STDIN_FILENO, &esc_seq, 1);
 
             if (esc_seq != '[') continue;
 
-            assert(read(STDIN_FILENO, &esc_seq, 1) > 0);
-            // write(STDOUT_FILENO, esc_seq, 1);
+            read(STDIN_FILENO, &esc_seq, 1);
 
             if (esc_seq == 'H') {
                 move_left(&line_pos, BUFLEN);
@@ -159,6 +159,22 @@ char* non_canonical_read_line(char* prompt) {
             }
 
             // tecla 'Options+Left' en OSX o 'Ctrl+Left' en Linux
+            if (esc_seq == '1') {
+                read(STDIN_FILENO, &esc_seq, 1);
+                read(STDIN_FILENO, &esc_seq, 1);
+                read(STDIN_FILENO, &esc_seq, 1);
+                if (esc_seq == 'D') {
+                    while (line_pos > 0 && buffer[line_pos - 2] != ' '){
+                        move_left(&line_pos, 1);
+                    }
+                }
+                if (esc_seq == 'C') {
+                    while (line_pos < (int)strlen(buffer) && buffer[line_pos + 1] != ' '){
+                        move_right(&line_pos, 1);
+                    }
+                }
+                
+            }
 
             if (esc_seq == 'A') {
                 history_pos++;
@@ -198,8 +214,19 @@ char* non_canonical_read_line(char* prompt) {
         }
 
         if (isprint(c)) {  // si es visible
+            int copy_pos = line_pos;
+            move_right(&copy_pos, ARGSIZE);
+            for (int i = strlen(buffer); i > line_pos; i--) {
+                delete_char();
+                buffer[i] = buffer[i - 1];
+            }
             write(STDOUT_FILENO, &c, 1);
+            write(STDOUT_FILENO, buffer + line_pos, strlen(buffer) - line_pos);
+            move_left(&copy_pos, strlen(buffer) - line_pos);
             buffer[line_pos++] = c;
+            // for (int i = line_pos; i < strlen(buffer); i++) {
+            //     write(STDOUT_FILENO, buffer[i], 1);
+            // }
         }
     }
 }

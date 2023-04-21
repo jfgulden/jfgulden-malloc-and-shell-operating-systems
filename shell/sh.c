@@ -18,7 +18,6 @@ char prompt[PRMTLEN] = {0};
 // runs a shell command
 static void run_shell() {
     char* cmd;
-    char* prolog = "> ";
 
     set_input_mode();
 
