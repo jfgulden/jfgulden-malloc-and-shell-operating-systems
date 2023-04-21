@@ -4,6 +4,8 @@
 
 extern char prompt[PRMTLEN];
 
+void print_history(FILE *histfile);
+
 // returns true if the 'exit' call
 // should be performed
 //
@@ -73,20 +75,10 @@ int history(char *cmd) {
         return 0;
     }
 
-    FILE *histfile;
-    char *histfile_dir = getenv("HISTFILE");
-    if (histfile_dir == NULL) {
-        histfile_dir = ".fisop_history";
-    }
-
-    histfile = fopen(histfile_dir, "r");
+    FILE *histfile = get_histfile();
 
     if (cmd[7] == '\0') {
-        char line[ARGSIZE];
-        while (fgets(line, ARGSIZE, histfile) != NULL) {
-            printf("%s", line);
-        }
-
+        print_history(histfile);
         return 1;
     }
 
@@ -96,7 +88,33 @@ int history(char *cmd) {
 
     int n = atoi(cmd + 8);
 
+    last_n_lines(histfile, n);
+
+    print_history(histfile);
+
+    return 1;
+}
+
+FILE *get_histfile() {
+    FILE *histfile;
+    char *histfile_dir = getenv("HISTFILE");
+    if (histfile_dir == NULL) {
+        histfile_dir = ".fisop_history";
+    }
+
+    histfile = fopen(histfile_dir, "r");
+
+    return histfile;
+}
+
+void print_history(FILE *histfile) {
     char line[ARGSIZE];
+    while (fgets(line, ARGSIZE, histfile) != NULL) {
+        write(STDOUT_FILENO, line, strlen(line));
+    }
+}
+
+void last_n_lines(FILE *histfile, int n) {
     fseek(histfile, 0, SEEK_END);
     int pos = ftell(histfile);
 
@@ -109,10 +127,4 @@ int history(char *cmd) {
     if (pos == 0) {
         fseek(histfile, 0, SEEK_SET);
     }
-
-    while (fgets(line, ARGSIZE, histfile)) {
-        fprintf(stdout, "%s", line);
-    }
-
-    return 1;
 }

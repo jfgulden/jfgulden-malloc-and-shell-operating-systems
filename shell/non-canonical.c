@@ -1,3 +1,5 @@
+#include "non-canonical.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -7,6 +9,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "builtin.h"
 #include "defs.h"
 
 #define CHAR_NL '\n'
@@ -14,6 +17,11 @@
 #define CHAR_BACK '\b'
 #define CHAR_DEL 127
 #define CHAR_ESC '\033'
+
+void delete_char(void);
+void move_left(int* line_pos, int n_movs);
+void move_right(int* line_pos, int n_movs);
+void write_command_from_history(FILE* histfile, int* line_pos);
 
 /* Use this variable to remember original terminal attributes. */
 struct termios saved_attributes;
@@ -55,9 +63,45 @@ void delete_char() {
     write(STDOUT_FILENO, "\b \b", 3);
 }
 
+void delete_line(int* line_pos) {
+    for (int i = 0; i < *line_pos; i++) {
+        delete_char();
+    }
+
+    *line_pos = 0;
+    memset(buffer, 0, BUFLEN);
+}
+
+void move_left(int* line_pos, int n_movs) {
+    if (n_movs > *line_pos) {
+        n_movs = *line_pos;
+    }
+
+    for (int i = 0; i < n_movs; i++) {
+        write(STDOUT_FILENO, "\b", 1);
+    }
+
+    *line_pos -= n_movs;
+
+    // move pointer left
+}
+
+void move_right(int* line_pos, int n_movs) {
+    if (n_movs > (int)strlen(buffer) - *line_pos) {
+        n_movs = strlen(buffer) - *line_pos;
+    }
+
+    for (int i = 0; i < n_movs; i++) {
+        write(STDOUT_FILENO, "\033[C", 3);
+    }
+
+    *line_pos += n_movs;
+}
+
 char* non_canonical_read_line(char* prompt) {
     char c;
     int line_pos = 0;
+    int history_pos = 0;
 
     char formatted_prompt[ARGSIZE];
     snprintf(formatted_prompt, sizeof formatted_prompt, "%s %s %s\n", COLOR_RED,
@@ -105,43 +149,67 @@ char* non_canonical_read_line(char* prompt) {
             if (esc_seq != '[') continue;
 
             assert(read(STDIN_FILENO, &esc_seq, 1) > 0);
+            // write(STDOUT_FILENO, esc_seq, 1);
+
+            if (esc_seq == 'H') {
+                move_left(&line_pos, BUFLEN);
+            }
+            if (esc_seq == 'F') {
+                move_right(&line_pos, BUFLEN);
+            }
+
+            // tecla 'Options+Left' en OSX o 'Ctrl+Left' en Linux
+
             if (esc_seq == 'A') {
-            }
-            if (esc_seq == 'B') {
-                        }
-            if (esc_seq == 'C') {
-                if (line_pos == strlen(buffer)) {
-                    // estamos al final de la pantalla
-                    continue;
-                }
-                write(STDOUT_FILENO, "\033[C", 3);
-                line_pos++;
-            }
-            if (esc_seq == 'D') {
-                // // flecha "izquierda"
-                // return "flecha izquierda\n";
-                if (line_pos == 0) {
-                    // estamos al comienzo de la pantalla
+                history_pos++;
+
+                FILE* histfile = get_histfile();
+                if (histfile == NULL) {
                     continue;
                 }
 
-                write(STDOUT_FILENO, "\b", 1);
-                line_pos--;
+                delete_line(&line_pos);
+                last_n_lines(histfile, history_pos);
+                write_command_from_history(histfile, &line_pos);
+            }
+            if (esc_seq == 'B') {
+                history_pos--;
+
+                if (history_pos <= 0) {
+                    history_pos = 0;
+                    continue;
+                }
+
+                FILE* histfile = get_histfile();
+                if (histfile == NULL) {
+                    continue;
+                }
+
+                delete_line(&line_pos);
+                last_n_lines(histfile, history_pos);
+                write_command_from_history(histfile, &line_pos);
+            }
+            if (esc_seq == 'C') {
+                move_right(&line_pos, 1);
+            }
+            if (esc_seq == 'D') {
+                move_left(&line_pos, 1);
             }
         }
 
         if (isprint(c)) {  // si es visible
-            assert(write(STDOUT_FILENO, &c, 1) > 0);
+            write(STDOUT_FILENO, &c, 1);
             buffer[line_pos++] = c;
         }
     }
 }
 
-void move_left() {
-    // move pointer left
-    write(STDOUT_FILENO, "\b", 1);
-}
-
-void move_right() {
-    // move pointer right
+void write_command_from_history(FILE* histfile, int* line_pos) {
+    char character = fgetc(histfile);
+    while (character != '\n') {
+        write(STDOUT_FILENO, &character, 1);
+        buffer[*line_pos] = character;
+        (*line_pos)++;
+        character = fgetc(histfile);
+    }
 }

@@ -5,6 +5,9 @@
 
 extern char prompt[PRMTLEN];
 
+FILE *get_histfile();
+void last_n_lines(FILE *histfile, int n);
+
 int cd(char *cmd);
 
 int exit_shell(char *cmd);
