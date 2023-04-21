@@ -31,7 +31,7 @@ int run_cmd(char *cmd) {
     // parses the command line
     parsed = parse_line(cmd);
 
-    // forks and run the command
+       // forks and run the command
     if ((p = fork()) == 0) {
         // keep a reference
         // to the parsed pipe cmd
