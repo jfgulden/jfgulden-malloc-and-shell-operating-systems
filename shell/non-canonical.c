@@ -23,9 +23,11 @@ int move_left(int n_movs);
 int move_right(int n_movs);
 void write_command_from_history(FILE* histfile);
 void render_line(int new_pos);
+void delete_line();
 
 /* Use this variable to remember original terminal attributes. */
 struct termios saved_attributes;
+
 char buffer[BUFLEN];
 
 int line_pos = 0;
@@ -68,12 +70,9 @@ void delete_char() {
 
 void delete_line() {
     int line_pos_aux = move_right(BUFLEN);
-    for (int i = 0; i < strlen(buffer); i++) {
+    for (size_t i = 0; i < strlen(buffer); i++) {
         delete_char();
     }
-
-    // line_pos = 0;
-    // memset(buffer, 0, BUFLEN);
 }
 
 int move_left(int n_movs) {
@@ -119,6 +118,7 @@ char* non_canonical_read_line(char* prompt) {
     while (true) {
         read(STDIN_FILENO, &c, 1);
 
+        // tecla "Enter"
         if (c == CHAR_NL) {
             buffer[line_pos] = END_STRING;
             write(STDOUT_FILENO, &c, 1);
@@ -126,8 +126,8 @@ char* non_canonical_read_line(char* prompt) {
             return buffer;
         }
 
+        // teclas "Ctrl-D"
         if (c == CHAR_EOF) {
-            // teclas "Ctrl-D"
             return NULL;
         }
 
@@ -155,9 +155,11 @@ char* non_canonical_read_line(char* prompt) {
 
             read(STDIN_FILENO, &esc_seq, 1);
 
+            // tecla "Home"
             if (esc_seq == 'H') {
                 line_pos = move_left(BUFLEN);
             }
+            // tecla "End"
             if (esc_seq == 'F') {
                 line_pos = move_right(BUFLEN);
             }
@@ -166,11 +168,13 @@ char* non_canonical_read_line(char* prompt) {
                 read(STDIN_FILENO, &esc_seq, 1);
                 read(STDIN_FILENO, &esc_seq, 1);
                 read(STDIN_FILENO, &esc_seq, 1);
+                // tecla "Ctrl + flecha izquierda"
                 if (esc_seq == 'D') {
                     while (line_pos > 0 && buffer[line_pos - 2] != ' ') {
                         line_pos = move_left(1);
                     }
                 }
+                // tecla "Ctrl + flecha derecha"
                 if (esc_seq == 'C') {
                     while (line_pos < (int)strlen(buffer) &&
                            buffer[line_pos + 1] != ' ') {
@@ -179,6 +183,7 @@ char* non_canonical_read_line(char* prompt) {
                 }
             }
 
+            // tecla "flecha arriba"
             if (esc_seq == 'A') {
                 history_pos++;
 
@@ -193,6 +198,7 @@ char* non_canonical_read_line(char* prompt) {
                 last_n_lines(histfile, history_pos);
                 write_command_from_history(histfile);
             }
+            // tecla "flecha abajo"
             if (esc_seq == 'B') {
                 history_pos--;
 
@@ -216,9 +222,11 @@ char* non_canonical_read_line(char* prompt) {
                 last_n_lines(histfile, history_pos);
                 write_command_from_history(histfile);
             }
+            // tecla "flecha derecha"
             if (esc_seq == 'C') {
                 line_pos = move_right(1);
             }
+            // tecla "flecha izquierda"
             if (esc_seq == 'D') {
                 line_pos = move_left(1);
             }
@@ -248,7 +256,7 @@ void write_command_from_history(FILE* histfile) {
 }
 
 void render_line(int new_pos) {
-    for (int i = 0; i < strlen(buffer); i++) {
+    for (size_t i = 0; i < strlen(buffer); i++) {
         write(STDOUT_FILENO, &buffer[i], 1);
     }
 

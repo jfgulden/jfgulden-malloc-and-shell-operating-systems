@@ -1,3 +1,4 @@
 *.o
 sh
 .DS_Store
+.vscode

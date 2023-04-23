@@ -5,15 +5,20 @@
 extern char prompt[PRMTLEN];
 
 void print_history(FILE *histfile);
+FILE *get_histfile();
+void last_n_lines(FILE *histfile, int n);
 
 // returns true if the 'exit' call
 // should be performed
 //
 // (It must not be called from here)
-int exit_shell(char *cmd) {
-    if (strcmp(cmd, "exit")) return 0;
+int
+exit_shell(char *cmd)
+{
+	if (strcmp(cmd, "exit"))
+		return 0;
 
-    return 1;
+	return 1;
 }
 
 // returns true if "chdir" was performed
@@ -28,28 +33,30 @@ int exit_shell(char *cmd) {
 // Examples:
 //  1. cmd = ['c','d', ' ', '/', 'b', 'i', 'n', '\0']
 //  2. cmd = ['c','d', '\0']
-int cd(char *cmd) {
-    if (strncmp(cmd, "cd", 2)) {
-        return 0;
-    }
+int
+cd(char *cmd)
+{
+	if (strncmp(cmd, "cd", 2)) {
+		return 0;
+	}
 
-    char *dir;
+	char *dir;
 
-    if (cmd[2] == '\0') {
-        dir = getenv("HOME");
-    } else if (cmd[2] == ' ') {
-        dir = cmd + 3;
-    } else {
-        return 0;
-    }
+	if (cmd[2] == '\0') {
+		dir = getenv("HOME");
+	} else if (cmd[2] == ' ') {
+		dir = cmd + 3;
+	} else {
+		return 0;
+	}
 
-    if (chdir(dir)) {
-        perror("Error al cambiar de directorio");
-    } else {
-        snprintf(prompt, sizeof prompt, "(%s)", getcwd(NULL, 0));
-    }
+	if (chdir(dir)) {
+		perror("Error al cambiar de directorio");
+	} else {
+		snprintf(prompt, sizeof prompt, "(%s)", getcwd(NULL, 0));
+	}
 
-    return 1;
+	return 1;
 }
 
 // returns true if 'pwd' was invoked
@@ -57,12 +64,14 @@ int cd(char *cmd) {
 //
 // (It has to be executed here and then
 // 	return true)
-int pwd(char *cmd) {
-    if (strcmp(cmd, "pwd")) {
-        return 0;
-    }
-    printf("%s\n", getcwd(NULL, 0));
-    return 1;
+int
+pwd(char *cmd)
+{
+	if (strcmp(cmd, "pwd")) {
+		return 0;
+	}
+	printf("%s\n", getcwd(NULL, 0));
+	return 1;
 }
 
 // returns true if `history` was invoked
@@ -70,61 +79,74 @@ int pwd(char *cmd) {
 //
 // (It has to be executed here and then
 // 	return true)
-int history(char *cmd) {
-    if (strncmp(cmd, "history", 7)) {
-        return 0;
-    }
+int
+history(char *cmd)
+{
+	if (strncmp(cmd, "history", 7)) {
+		return 0;
+	}
 
-    FILE *histfile = get_histfile();
+	FILE *histfile = get_histfile();
 
-    if (cmd[7] == '\0') {
-        print_history(histfile);
-        return 1;
-    }
+	if (cmd[7] == '\0') {
+		print_history(histfile);
+		return 1;
+	}
 
-    if (cmd[7] != ' ') {
-        return 0;
-    }
+	if (cmd[7] != ' ') {
+		return 0;
+	}
 
-    int n = atoi(cmd + 8);
+	int n = atoi(cmd + 8);
 
-    last_n_lines(histfile, n);
+	last_n_lines(histfile, n);
 
-    print_history(histfile);
+	print_history(histfile);
 
-    return 1;
+	return 1;
 }
 
-FILE *get_histfile() {
-    FILE *histfile;
-    char *histfile_dir = getenv("HISTFILE");
-    if (histfile_dir == NULL) {
-        histfile_dir = ".fisop_history";
-    }
+FILE *
+get_histfile()
+{
+	FILE *histfile;
+	char *histfile_dir = getenv("HISTFILE");
+	if (histfile_dir == NULL) {
+		histfile_dir = ".fisop_history";
+	}
 
-    histfile = fopen(histfile_dir, "r");
+	histfile = fopen(histfile_dir, "r");
+	if (histfile == NULL) {
+		perror("Error al abrir el archivo de historial");
+		exit(EXIT_FAILURE);
+	}
 
-    return histfile;
+	return histfile;
 }
 
-void print_history(FILE *histfile) {
-    char line[ARGSIZE];
-    while (fgets(line, ARGSIZE, histfile) != NULL) {
-        write(STDOUT_FILENO, line, strlen(line));
-    }
+void
+print_history(FILE *histfile)
+{
+	char line[ARGSIZE];
+	while (fgets(line, ARGSIZE, histfile) != NULL) {
+		write(STDOUT_FILENO, line, strlen(line));
+	}
 }
 
-void last_n_lines(FILE *histfile, int n) {
-    fseek(histfile, 0, SEEK_END);
-    int pos = ftell(histfile);
+void
+last_n_lines(FILE *histfile, int n)
+{
+	fseek(histfile, 0, SEEK_END);
+	int pos = ftell(histfile);
 
-    int i = 0;
-    while (pos && i <= n) {
-        fseek(histfile, --pos, SEEK_SET);
-        if (fgetc(histfile) == '\n') i++;
-    }
+	int i = 0;
+	while (pos && i <= n) {
+		fseek(histfile, --pos, SEEK_SET);
+		if (fgetc(histfile) == '\n')
+			i++;
+	}
 
-    if (pos == 0) {
-        fseek(histfile, 0, SEEK_SET);
-    }
+	if (pos == 0) {
+		fseek(histfile, 0, SEEK_SET);
+	}
 }
