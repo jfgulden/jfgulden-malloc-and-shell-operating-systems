@@ -65,7 +65,10 @@ void set_input_mode(void) {
 void delete_char() {
     // genera una secuencia de bytes
     // que indican que se debe borrar un byte
-    write(STDOUT_FILENO, "\b \b", 3);
+    if (write(STDOUT_FILENO, "\b \b", 3) < 0){
+        perror("Error al intetar escribir en STDOUT");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void delete_line() {
@@ -81,7 +84,10 @@ int move_left(int n_movs) {
     }
 
     for (int i = 0; i < n_movs; i++) {
-        write(STDOUT_FILENO, "\b", 1);
+        if (write(STDOUT_FILENO, "\b", 1) < 0){
+            perror("Error al intetar escribir en STDOUT");
+            exit(EXIT_FAILURE);
+        }
     }
 
     return line_pos - n_movs;
@@ -93,7 +99,10 @@ int move_right(int n_movs) {
     }
 
     for (int i = 0; i < n_movs; i++) {
-        write(STDOUT_FILENO, "\033[C", 3);
+        if (write(STDOUT_FILENO, "\033[C", 3) < 0){
+            perror("Error al intetar escribir en STDOUT");
+            exit(EXIT_FAILURE);
+        }
     }
 
     return line_pos + n_movs;
@@ -111,17 +120,29 @@ char* non_canonical_read_line(char* prompt) {
              prompt, COLOR_RESET);
 
 #ifndef SHELL_NO_INTERACTIVE
-    write(STDOUT_FILENO, formatted_prompt, strlen(formatted_prompt));
-    write(STDOUT_FILENO, "$ ", 2);
+    if (write(STDOUT_FILENO, formatted_prompt, strlen(formatted_prompt)) < 0){
+        perror("Error al intetar escribir en STDOUT");
+        exit(EXIT_FAILURE);
+    };
+    if (write(STDOUT_FILENO, "$ ", 2) < 0){
+        perror("Error al intetar escribir en STDOUT");
+        exit(EXIT_FAILURE);
+    };
 #endif
 
     while (true) {
-        read(STDIN_FILENO, &c, 1);
+        if (read(STDIN_FILENO, &c, 1) < 0){
+            perror("Error al intetar leer de STDIN");
+            exit(EXIT_FAILURE);
+        }
 
         // tecla "Enter"
         if (c == CHAR_NL) {
             buffer[line_pos] = END_STRING;
-            write(STDOUT_FILENO, &c, 1);
+            if (write(STDOUT_FILENO, &c, 1) < 0){
+                perror("Error al intetar escribir en STDOUT");
+                exit(EXIT_FAILURE);
+            }
 
             return buffer;
         }
@@ -149,11 +170,17 @@ char* non_canonical_read_line(char* prompt) {
 
         if (c == CHAR_ESC) {
             char esc_seq;
-            read(STDIN_FILENO, &esc_seq, 1);
+            if (read(STDIN_FILENO, &esc_seq, 1) < 0){
+                perror("Error al intetar leer de STDIN");
+                exit(EXIT_FAILURE);
+            }
 
             if (esc_seq != '[') continue;
 
-            read(STDIN_FILENO, &esc_seq, 1);
+            if (read(STDIN_FILENO, &esc_seq, 1) < 0){
+                perror("Error al intetar leer de STDIN");
+                exit(EXIT_FAILURE);
+            }
 
             // tecla "Home"
             if (esc_seq == 'H') {
@@ -165,9 +192,18 @@ char* non_canonical_read_line(char* prompt) {
             }
 
             if (esc_seq == '1') {
-                read(STDIN_FILENO, &esc_seq, 1);
-                read(STDIN_FILENO, &esc_seq, 1);
-                read(STDIN_FILENO, &esc_seq, 1);
+                if (read(STDIN_FILENO, &esc_seq, 1) < 0){
+                    perror("Error al intetar leer de STDIN");
+                    exit(EXIT_FAILURE);
+                }
+                if (read(STDIN_FILENO, &esc_seq, 1) < 0){
+                    perror("Error al intetar leer de STDIN");
+                    exit(EXIT_FAILURE);
+                }
+                if (read(STDIN_FILENO, &esc_seq, 1) < 0){
+                    perror("Error al intetar leer de STDIN");
+                    exit(EXIT_FAILURE);
+                }
                 // tecla "Ctrl + flecha izquierda"
                 if (esc_seq == 'D') {
                     while (line_pos > 0 && buffer[line_pos - 2] != ' ') {
@@ -248,7 +284,10 @@ char* non_canonical_read_line(char* prompt) {
 void write_command_from_history(FILE* histfile) {
     char character = fgetc(histfile);
     while (character != '\n') {
-        write(STDOUT_FILENO, &character, 1);
+        if (write(STDOUT_FILENO, &character, 1) < 0){
+            perror("Error al intetar escribir en STDOUT");
+            exit(EXIT_FAILURE);
+        }
         buffer[line_pos] = character;
         line_pos++;
         character = fgetc(histfile);
@@ -257,7 +296,10 @@ void write_command_from_history(FILE* histfile) {
 
 void render_line(int new_pos) {
     for (size_t i = 0; i < strlen(buffer); i++) {
-        write(STDOUT_FILENO, &buffer[i], 1);
+        if (write(STDOUT_FILENO, &buffer[i], 1) < 0){
+            perror("Error al intetar escribir en STDOUT");
+            exit(EXIT_FAILURE);
+        }
     }
 
     line_pos = strlen(buffer);

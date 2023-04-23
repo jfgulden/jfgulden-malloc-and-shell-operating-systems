@@ -8,6 +8,7 @@ void print_history(FILE *histfile);
 FILE *get_histfile();
 void last_n_lines(FILE *histfile, int n);
 
+
 // returns true if the 'exit' call
 // should be performed
 //
@@ -129,7 +130,10 @@ print_history(FILE *histfile)
 {
 	char line[ARGSIZE];
 	while (fgets(line, ARGSIZE, histfile) != NULL) {
-		write(STDOUT_FILENO, line, strlen(line));
+		if (write(STDOUT_FILENO, line, strlen(line)) < 0) {
+			perror("Error al intentar escribir en STDOUT");
+			exit(EXIT_FAILURE);
+		}
 	}
 }
 
