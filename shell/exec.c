@@ -142,7 +142,7 @@ exec_cmd(struct cmd *cmd)
 		handle_output_redir(r->out_file);
 		handle_input_redir(r->in_file);
 		handle_error_redir(r->err_file);
-        
+
 		execvp(r->argv[0], r->argv);
 
 		perror("fallo al ejecutar el comando");

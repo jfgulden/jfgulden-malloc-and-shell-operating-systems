@@ -23,7 +23,7 @@ int move_left(int n_movs);
 int move_right(int n_movs);
 void write_command_from_history(FILE* histfile);
 void render_line(int new_pos);
-void delete_line();
+void delete_line(void);
 
 /* Use this variable to remember original terminal attributes. */
 struct termios saved_attributes;
@@ -72,7 +72,7 @@ void delete_char() {
 }
 
 void delete_line() {
-    int line_pos_aux = move_right(BUFLEN);
+    move_right(BUFLEN);
     for (size_t i = 0; i < strlen(buffer); i++) {
         delete_char();
     }
