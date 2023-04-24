@@ -12,6 +12,6 @@
 
 void reset_input_mode(void);
 void set_input_mode(void);
-char* non_canonical_read_line(char* prompt);
+char *non_canonical_read_line(char *prompt);
 
 #endif  // NON_CANONICAL_H
