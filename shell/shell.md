@@ -37,7 +37,12 @@ Al repetirlo invirtiendo el orden de las redirecciones, lo que sucede es que se 
 ### Tuberías múltiples
 Responder: Investigar qué ocurre con el exit code reportado por la shell si se ejecuta un pipe
 ¿Cambia en algo?
-
+Si se ejecuta un pipe, el exit code reportado por la shell es el exit code del último comando ejecutado en el pipe.
+Ejemplo en bash:
+$ echo hola | grep hola | grep noexiste
+$ $?
+1
+En este caso, el exit code es 1 porque el último comando ejecutado en el pipe es grep noexiste, el cual no encuentra la palabra noexiste en la salida del comando anterior, por lo que retorna 1 a pesar de que el comando anterior haya encontrado la palabra hola.
 
 ¿Qué ocurre si, en un pipe, alguno de los comandos falla? Mostrar evidencia (e.g. salidas de terminal) de este comportamiento usando bash. Comparar con su implementación.
 -Si alguno de los comandos falla, el otro comando se ejecuta normalmente. En caso de que el comando de la derecha deba recibir el output del extremo izquierdo para poder ejecutarse, estaría recibiendo un error, por lo que no se ejecutaría adecuadamente.
@@ -64,7 +69,9 @@ Responder: ¿Por qué es necesario hacerlo luego de la llamada a fork(2)?
 Responder: En algunos de los wrappers de la familia de funciones de exec(3) (las que finalizan con la letra e), se les puede pasar un tercer argumento (o una lista de argumentos dependiendo del caso), con nuevas variables de entorno para la ejecución de ese proceso. Supongamos, entonces, que en vez de utilizar setenv(3) por cada una de las variables, se guardan en un arreglo y se lo coloca en el tercer argumento de una de las funciones de exec(3).
 ¿El comportamiento resultante es el mismo que en el primer caso? Explicar qué sucede y por qué.
 Describir brevemente (sin implementar) una posible implementación para que el comportamiento sea el mismo.
--El comportamiento no es el mismo porque en lugar de setear las variables de entorno para el proceso que llama a la función, las setea para el nuevo proceso que se va a ejecutar. 
+-El comportamiento no es el mismo porque en lugar de setear las variables de entorno para el proceso que llama a la función, las setea para el nuevo proceso que se va a ejecutar, por lo que la shell y el nuevo proceso no comparten las mismas variables de entorno.
+Una posible implementación para que el comportamiento sea el mismo sería setear las variables de entorno para el proceso que llama a la función, y luego guardarlas en un arreglo para pasárselas al nuevo proceso que se va a ejecutar, de esta forma ambos procesos comparten las mismas variables de entorno.
+Asi, quedan seteadas correctamente las variables de entorno temporales para el proceso que llama a la función, y luego se las pasamos al nuevo proceso que se va a ejecutar. 
 
 ### Pseudo-variables
 Responder: Investigar al menos otras tres variables mágicas estándar, y describir su propósito.
