@@ -12,6 +12,18 @@
 #define REGION2PTR(r) ((r) + 1)
 #define PTR2REGION(ptr) ((struct region *) (ptr) -1)
 
+// Quizas puede servir esta estructura y que tenga un campo con el tamaño
+// (chico, mediano, grande) (parte 1 del tp solo tiene el chico) y otro campo
+// con un puntero a la primera region del bloque? Esta idea fue sugerida en la
+// clase del 28/4. Mas adelante se puede agregar un campo con  una referencia al
+// bloque anterior o al siguiente o ambos.
+struct block {
+	size_t size;
+	struct region *first;
+};
+
+// Estructura que representa una region de memoria
+// Es un header que contiene informacion sobre la region, no los datos que el usuario guarda en si. CREO
 struct region {
 	bool free;
 	size_t size;
@@ -102,6 +114,9 @@ malloc(size_t size)
 	//
 	// hint: maybe split free regions?
 
+	// Esto lo que hace es agarrar el puntero al header de la region y
+	// moverlo (en aritmetica de punteros es sumar 1), de esta forma queda
+	// apuntando a los datos que el usuario va a guardar.
 	return REGION2PTR(next);
 }
 
@@ -111,6 +126,10 @@ free(void *ptr)
 	// updates statistics
 	amount_of_frees++;
 
+	// Esto lo que hace es agarrar el ptr que recibe por parametro (que apunta
+	// a los datos que el usuario guardo) y le resta el tamaño del header de
+	// la region, de esta forma queda apuntando al header de la region. Y como
+	// el header guarda el tamaño de la region, se puede saber rapidamente cuanta memoria hay que liberar.
 	struct region *curr = PTR2REGION(ptr);
 	assert(curr->free == 0);
 
@@ -119,6 +138,8 @@ free(void *ptr)
 	// Your code here
 	//
 	// hint: maybe coalesce regions?
+
+	// Una idea para coalescer es recorrer
 }
 
 void *
