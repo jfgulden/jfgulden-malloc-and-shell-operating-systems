@@ -26,13 +26,14 @@ int requested_memory = 0;
 static struct region *
 find_free_region(size_t size)
 {
-	if (!first_block) {
+	if (!first_region) {
 		return NULL;
 	}
 
-	struct region *last_region = first_block->first;
+	struct region *last_region = first_region;
 
-	while (last_region->next) {
+	// #ifdef FIRST_FIT
+	while (last_region) {
 		if (last_region->free && last_region->size >= size) {
 			if (last_region->size - size >=
 			    MIN_REGION_SIZE + sizeof(struct region)) {
@@ -52,54 +53,50 @@ find_free_region(size_t size)
 		}
 		last_region = last_region->next;
 	}
-	size_t free_space = (size_t) first_block->size + (size_t) first_block -
-	                    (size_t) last_region;
-	if (free_space < size)
-		return NULL;
-
-
-#ifdef FIRST_FIT
-		// Your code here for "first fit"
-#endif
+	// #endif
 
 #ifdef BEST_FIT
-		// Your code here for "best fit"
+	// Your code here for "best fit"
 #endif
 
-
-	struct region *new_region =
-	        (size_t) last_region + sizeof(struct region) + last_region->size;
-	new_region->size = size;
-	new_region->free = false;
-	new_region->next = NULL;
-	new_region->prev = last_region;
-	last_region->next = new_region;
-
-	return new_region;
+	return NULL;
 }
 
 static struct region *
 grow_heap(size_t size)
 {
-	if (size > SMALL) {
+	size_t block_size = SMALL;
+	if (size > LARGE - sizeof(struct region)) {
 		return NULL;
+	} else if (size > MEDIUM - sizeof(struct region)) {
+		block_size = LARGE;
+	} else if (size > SMALL - sizeof(struct region)) {
+		block_size = MEDIUM;
 	}
 
-	if (!first_block) {
-		first_block = mmap(NULL,
-		                   SMALL,
-		                   PROT_READ | PROT_WRITE,
-		                   MAP_PRIVATE | MAP_ANONYMOUS,
-		                   -1,
-		                   0);
-		first_block->size = SMALL;
-		first_block->first = (size_t) first_block + sizeof(struct block);
-		first_block->first->prev = NULL;
-		first_block->first->next = NULL;
-		first_block->first->free = false;
-		first_block->first->size = size;
-		return first_block->first;
+	if (!first_region) {
+		first_region = mmap(NULL,
+		                    block_size,
+		                    PROT_READ | PROT_WRITE,
+		                    MAP_PRIVATE | MAP_ANONYMOUS,
+		                    -1,
+		                    0);
+		first_region->free = false;
+		first_region->size = size;
+		first_region->prev = NULL;
+		first_region->is_first = true;
+		first_region->next =
+		        (struct region *) ((size_t) first_region + size +
+		                           sizeof(struct region));
+		first_region->next->free = true;
+		first_region->next->size =
+		        block_size - size - 2 * sizeof(struct region);
+		first_region->next->prev = first_region;
+		first_region->next->next = NULL;
+		first_region->next->is_first = false;
+		return first_region;
 	}
+
 
 	return NULL;
 }
@@ -121,10 +118,13 @@ malloc(size_t size)
 	amount_of_mallocs++;
 	requested_memory += size;
 
+	printfmt("size: %p\n", size);
 	free_region = find_free_region(size);
+	printfmt("free_region size: %p\n", free_region->size);
 
 	if (!free_region) {
 		free_region = grow_heap(size);
+		printfmt("free_region size: %p\n", free_region->size);
 	}
 	if (!free_region) {
 		return NULL;
@@ -155,7 +155,7 @@ free(void *ptr)
 
 	curr->free = true;
 
-	if (curr->prev && curr->prev->free) {
+	if (curr->prev && curr->prev->free && !curr->is_first) {
 		curr->prev->size += curr->size + sizeof(struct region);
 		curr->prev->next = curr->next;
 		if (curr->next)
@@ -163,7 +163,7 @@ free(void *ptr)
 		curr = curr->prev;
 	}
 
-	if (curr->next && curr->next->free) {
+	if (curr->next && curr->next->free && !curr->next->is_first) {
 		curr->size += curr->next->size + sizeof(struct region);
 		curr->next = curr->next->next;
 		curr->next->prev = curr;

@@ -13,16 +13,6 @@ typedef enum block_size {
 	LARGE = 32 * 1024 * 128,
 } block_size_t;
 
-// Quizas puede servir esta estructura y que tenga un campo con el tamaño
-// (chico, mediano, grande) (parte 1 del tp solo tiene el chico) y otro campo
-// con un puntero a la primera region del bloque? Esta idea fue sugerida en la
-// clase del 28/4. Mas adelante se puede agregar un campo con  una referencia al
-// bloque anterior o al siguiente o ambos.
-struct block {
-	block_size_t size;
-	struct region *first;
-};
-
 // Estructura que representa una region de memoria
 // Es un header que contiene informacion sobre la region, no los datos que el usuario guarda en si. CREO
 struct region {
@@ -30,9 +20,10 @@ struct region {
 	size_t size;
 	struct region *next;
 	struct region *prev;
+	bool is_first;
 };
 
-struct block *first_block;
+struct region *first_region;
 
 void *malloc(size_t size);
 

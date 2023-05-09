@@ -136,13 +136,11 @@ ptr_to_malloc_returns_correct_position(void)
 
 	ASSERT_TRUE("11.first malloc points after first block header plus the "
 	            "region header",
-	            var - (size_t) first_block ==
-	                    sizeof(struct block) + sizeof(struct region));
+	            var - (size_t) first_region == sizeof(struct region));
 	ASSERT_TRUE(
 	        "12.second malloc points after first malloc ptr plus its size "
 	        "plus the second region header",
-	        var2 - (size_t) first_block ==
-	                sizeof(struct block) + 100 + 2 * sizeof(struct region));
+	        var2 - (size_t) first_region == 100 + 2 * sizeof(struct region));
 
 	free(var);
 	free(var2);
@@ -210,7 +208,7 @@ cant_use_freed_region_if_malloc_size_is_bigger(void)
 	free(var);
 	free(var2);
 
-	size_t var4 = (size_t) malloc(233);
+	size_t var4 = (size_t) malloc(200 + sizeof(struct region) + 1);
 
 	ASSERT_TRUE("16.malloc does not point to freed region if its size is "
 	            "bigger",
@@ -271,6 +269,16 @@ malloc_of_a_small_enough_space_allows_splitting(void)
 	        var5 < var3);
 }
 
+static void
+malloc_of_size_bigger_than_small_creates_a_bigger_region(void)
+{
+	size_t var = (size_t) malloc(SMALL);
+	ASSERT_TRUE("20.malloc of size bigger than small creates a bigger "
+	            "region",
+	            MEDIUM == first_region->size + first_region->next->size +
+	                              2 * sizeof(struct region));
+}
+
 
 int
 main(void)
@@ -291,6 +299,7 @@ main(void)
 	run_test(coalesing_with_following_region);
 	run_test(coalesing_with_following_region_also_includes_region_header);
 	run_test(malloc_of_a_small_enough_space_allows_splitting);
+	run_test(malloc_of_size_bigger_than_small_creates_a_bigger_region);
 
 	return 0;
 }
