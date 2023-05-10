@@ -23,7 +23,6 @@ struct region {
 	bool is_first;
 };
 
-struct region *first_region;
 
 void *malloc(size_t size);
 

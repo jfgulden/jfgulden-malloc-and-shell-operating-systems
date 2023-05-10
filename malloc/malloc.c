@@ -14,12 +14,43 @@
 #define PTR2REGION(ptr) ((struct region *) (ptr) -1)
 #define MIN_REGION_SIZE 32
 
-struct region *region_free_list = NULL;
 
 int amount_of_mallocs = 0;
 int amount_of_frees = 0;
 int requested_memory = 0;
 
+void
+try_split_region(struct region *region, size_t size)
+{
+	if (region->size - size < MIN_REGION_SIZE + sizeof(struct region))
+		return;
+
+	struct region *new_region =
+	        (struct region *) ((size_t) region + sizeof(struct region) + size);
+	new_region->size = region->size - size - sizeof(struct region);
+	new_region->free = true;
+	new_region->next = region->next;
+	new_region->prev = region;
+
+	region->size = size;
+	region->next = new_region;
+}
+
+
+// new_region_block->size = size;
+// new_region_block->prev = NULL;
+// new_region_block->is_first = true;
+
+// struct region *rest_block_region =
+//         (struct region *) ((size_t) new_region_block + size +
+//                            sizeof(struct region));
+// rest_block_region->free = true;
+// rest_block_region->size = block_size - size - 2 * sizeof(struct
+// region); rest_block_region->prev = new_region_block;
+// rest_block_region->next = NULL; rest_block_region->is_first = false;
+
+
+struct region *first_region;
 // finds the next free region
 // that holds the requested size
 //
@@ -30,33 +61,37 @@ find_free_region(size_t size)
 		return NULL;
 	}
 
-	struct region *last_region = first_region;
 
-	// #ifdef FIRST_FIT
+#ifdef FIRST_FIT
+	struct region *last_region = first_region;
 	while (last_region) {
 		if (last_region->free && last_region->size >= size) {
-			if (last_region->size - size >=
-			    MIN_REGION_SIZE + sizeof(struct region)) {
-				struct region *new_region =
-				        (size_t) last_region +
-				        sizeof(struct region) + size;
-				new_region->size = last_region->size - size -
-				                   sizeof(struct region);
-				new_region->free = true;
-				new_region->next = last_region->next;
-				new_region->prev = last_region;
-				last_region->size = size;
-				last_region->next = new_region;
-			}
+			try_split_region(last_region, size);
+
 			last_region->free = false;
 			return last_region;
 		}
 		last_region = last_region->next;
 	}
-	// #endif
+#endif
 
 #ifdef BEST_FIT
-	// Your code here for "best fit"
+	struct region *best_region = NULL;
+	struct region *last_region = first_region;
+	while (last_region) {
+		if (last_region->free && last_region->size >= size) {
+			if (!best_region || last_region->size < best_region->size) {
+				best_region = last_region;
+			}
+		}
+		last_region = last_region->next;
+	}
+
+	if (best_region) {
+		try_split_region(best_region, size);
+		best_region->free = false;
+		return best_region;
+	}
 #endif
 
 	return NULL;
@@ -74,31 +109,49 @@ grow_heap(size_t size)
 		block_size = MEDIUM;
 	}
 
+	struct region *new_region_block = mmap(NULL,
+	                                       block_size,
+	                                       PROT_READ | PROT_WRITE,
+	                                       MAP_PRIVATE | MAP_ANONYMOUS,
+	                                       -1,
+	                                       0);
+
+	new_region_block->size = block_size - sizeof(struct region);
+	new_region_block->is_first = true;
+
+	try_split_region(new_region_block, size);
+	new_region_block->free = false;
+
+	// new_region_block->free = false;
+	// new_region_block->size = size;
+	// new_region_block->prev = NULL;
+
+	// struct region *rest_block_region =
+	//         (struct region *) ((size_t) new_region_block + size +
+	//                            sizeof(struct region));
+	// rest_block_region->free = true;
+	// rest_block_region->size = block_size - size - 2 * sizeof(struct
+	// region); rest_block_region->prev = new_region_block;
+	// rest_block_region->next = NULL; rest_block_region->is_first = false;
+
+
+	// new_region_block->next = rest_block_region;
+
+
 	if (!first_region) {
-		first_region = mmap(NULL,
-		                    block_size,
-		                    PROT_READ | PROT_WRITE,
-		                    MAP_PRIVATE | MAP_ANONYMOUS,
-		                    -1,
-		                    0);
-		first_region->free = false;
-		first_region->size = size;
-		first_region->prev = NULL;
-		first_region->is_first = true;
-		first_region->next =
-		        (struct region *) ((size_t) first_region + size +
-		                           sizeof(struct region));
-		first_region->next->free = true;
-		first_region->next->size =
-		        block_size - size - 2 * sizeof(struct region);
-		first_region->next->prev = first_region;
-		first_region->next->next = NULL;
-		first_region->next->is_first = false;
-		return first_region;
+		first_region = new_region_block;
+	} else {
+		struct region *last_region = first_region;
+		while (last_region->next) {
+			last_region = last_region->next;
+		}
+
+		last_region->next = new_region_block;
+		new_region_block->prev = last_region;
 	}
 
 
-	return NULL;
+	return new_region_block;
 }
 
 /// Public API of malloc library ///
@@ -118,13 +171,10 @@ malloc(size_t size)
 	amount_of_mallocs++;
 	requested_memory += size;
 
-	printfmt("size: %p\n", size);
 	free_region = find_free_region(size);
-	printfmt("free_region size: %p\n", free_region->size);
 
 	if (!free_region) {
 		free_region = grow_heap(size);
-		printfmt("free_region size: %p\n", free_region->size);
 	}
 	if (!free_region) {
 		return NULL;
@@ -139,6 +189,8 @@ malloc(size_t size)
 void
 free(void *ptr)
 {
+	if (!ptr)
+		return;
 	// updates statistics
 	amount_of_frees++;
 
@@ -147,6 +199,7 @@ free(void *ptr)
 	// la region, de esta forma queda apuntando al header de la region. Y como
 	// el header guarda el tamaño de la region, se puede saber rapidamente cuanta memoria hay que liberar.
 	struct region *curr = PTR2REGION(ptr);
+
 
 	if (curr->free) {
 		printfmt("ERROR: free() called on already freed pointer\n");
@@ -166,7 +219,8 @@ free(void *ptr)
 	if (curr->next && curr->next->free && !curr->next->is_first) {
 		curr->size += curr->next->size + sizeof(struct region);
 		curr->next = curr->next->next;
-		curr->next->prev = curr;
+		if (curr->next)
+			curr->next->prev = curr;
 	}
 }
 
