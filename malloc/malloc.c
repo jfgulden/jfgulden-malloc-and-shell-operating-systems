@@ -119,7 +119,6 @@ grow_heap(size_t size)
 	new_region_block->is_first = true;
 
 	new_region_block->next = NULL;
-	new_region_block->prev = NULL;
 
 	try_split_region(new_region_block, size);
 
