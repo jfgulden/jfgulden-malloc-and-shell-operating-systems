@@ -1,10 +1,12 @@
 #ifndef _MALLOC_H_
 #define _MALLOC_H_
 
+
 struct malloc_stats {
 	int mallocs;
 	int frees;
 	int requested_memory;
+	int blocks_counter;
 };
 
 typedef enum block_size {

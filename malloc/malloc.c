@@ -18,6 +18,7 @@
 int amount_of_mallocs = 0;
 int amount_of_frees = 0;
 int requested_memory = 0;
+int blocks_counter = 0;
 
 void
 try_split_region(struct region *region, size_t size)
@@ -34,6 +35,7 @@ try_split_region(struct region *region, size_t size)
 
 	region->size = size;
 	region->next = new_region;
+	region->free = false;
 }
 
 
@@ -67,8 +69,6 @@ find_free_region(size_t size)
 	while (last_region) {
 		if (last_region->free && last_region->size >= size) {
 			try_split_region(last_region, size);
-
-			last_region->free = false;
 			return last_region;
 		}
 		last_region = last_region->next;
@@ -89,7 +89,6 @@ find_free_region(size_t size)
 
 	if (best_region) {
 		try_split_region(best_region, size);
-		best_region->free = false;
 		return best_region;
 	}
 #endif
@@ -119,8 +118,11 @@ grow_heap(size_t size)
 	new_region_block->size = block_size - sizeof(struct region);
 	new_region_block->is_first = true;
 
+	new_region_block->next = NULL;
+	new_region_block->prev = NULL;
+
 	try_split_region(new_region_block, size);
-	new_region_block->free = false;
+
 
 	// new_region_block->free = false;
 	// new_region_block->size = size;
@@ -174,6 +176,7 @@ malloc(size_t size)
 	free_region = find_free_region(size);
 
 	if (!free_region) {
+		blocks_counter++;
 		free_region = grow_heap(size);
 	}
 	if (!free_region) {
@@ -208,6 +211,7 @@ free(void *ptr)
 
 	curr->free = true;
 
+
 	if (curr->prev && curr->prev->free && !curr->is_first) {
 		curr->prev->size += curr->size + sizeof(struct region);
 		curr->prev->next = curr->next;
@@ -221,6 +225,12 @@ free(void *ptr)
 		curr->next = curr->next->next;
 		if (curr->next)
 			curr->next->prev = curr;
+	}
+
+	if (curr->is_first && !curr->next) {
+		curr->prev->next = NULL;
+		munmap(curr, curr->size);
+		blocks_counter--;
 	}
 }
 
@@ -246,4 +256,5 @@ get_stats(struct malloc_stats *stats)
 	stats->mallocs = amount_of_mallocs;
 	stats->frees = amount_of_frees;
 	stats->requested_memory = requested_memory;
+	stats->blocks_counter = blocks_counter;
 }

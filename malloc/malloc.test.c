@@ -330,6 +330,19 @@ malloc_of_size_bigger_than_small_creates_a_bigger_region(void)
 	            MEDIUM == first_region->size + first_region->next->size +
 	                              2 * sizeof(struct region));
 }
+static void
+freeing_all_regions_of_block_frees_block()
+{
+	struct malloc_stats stats;
+	char *var1 = malloc(2048 - sizeof(struct region));
+	char *var2 = malloc(100);
+
+	free(var2);
+	get_stats(&stats);
+
+	ASSERT_TRUE("21. freeing all regions of a block frees the entire block",
+	            stats.blocks_counter == 1);
+}
 
 static void
 testing_finding_free_regions()
@@ -345,11 +358,11 @@ testing_finding_free_regions()
 
 	size_t var_new = (size_t) malloc(50);
 
-	ASSERT_TRUE("21. FIRST FIT: new malloc should use first empty space "
+	ASSERT_TRUE("22. FIRST FIT: new malloc should use first empty space "
 	            "big enough",
 	            var_new == var2);
 
-	ASSERT_TRUE("22. BEST FIT: new malloc should use smaller empty space "
+	ASSERT_TRUE("23. BEST FIT: new malloc should use smaller empty space "
 	            "big enough",
 	            var_new == var4);
 }
@@ -376,6 +389,7 @@ main(void)
 	run_test(coalesing_with_following_region_also_includes_region_header);
 	run_test(malloc_of_a_small_enough_space_allows_splitting);
 	run_test(malloc_of_size_bigger_than_small_creates_a_bigger_region);
+	run_test(freeing_all_regions_of_block_frees_block);
 	run_test(testing_finding_free_regions);
 
 	return 0;
