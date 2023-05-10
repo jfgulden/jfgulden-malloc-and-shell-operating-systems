@@ -226,7 +226,7 @@ free(void *ptr)
 			curr->next->prev = curr;
 	}
 
-	if (curr->is_first && !curr->next) {
+	if (curr->is_first && (!curr->next || curr->next->is_first)) {
 		curr->prev->next = curr->next;
 		munmap(curr, curr->size);
 		blocks_counter--;
