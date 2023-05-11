@@ -227,7 +227,12 @@ free(void *ptr)
 	}
 
 	if (curr->is_first && (!curr->next || curr->next->is_first)) {
-		curr->prev->next = curr->next;
+		if (curr == first_region)
+			first_region = curr->next;
+		else
+			curr->prev->next = curr->next;
+		if (curr->next)
+			curr->next->prev = curr->prev;
 		munmap(curr, curr->size);
 		blocks_counter--;
 	}

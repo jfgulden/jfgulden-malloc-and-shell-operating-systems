@@ -348,16 +348,29 @@ freeing_all_regions_of_last_block_frees_block()
 static void
 freeing_all_regions_of_middle_block_frees_block()
 {
-	struct malloc_stats stats;
-	char *var1 = malloc(2048 - sizeof(struct region));
-	char *var2 = malloc(2048 - sizeof(struct region));
-	free(var2);
-	char *var3 = malloc(100);
-	get_stats(&stats);
+	size_t var1 = (size_t) malloc(SMALL - sizeof(struct region));
+	size_t var2 = (size_t) malloc(SMALL - sizeof(struct region));
+	size_t var3 = (size_t) malloc(100);
 
-	ASSERT_TRUE("22. freeing all regions of a block in the middle frees "
-	            "the entire block",
-	            stats.blocks_counter == 2);
+
+	struct region *first_region =
+	        (struct region *) (var1 - sizeof(struct region));
+	struct region *last_region =
+	        (struct region *) (var3 - sizeof(struct region));
+
+
+	free(var2);
+
+	ASSERT_TRUE("22. freeing all regions of a block in the middle "
+	            "frees "
+	            "the entire block (1/2)",
+	            first_region->next == last_region);
+
+
+	ASSERT_TRUE("22. freeing all regions of a block in the middle "
+	            "frees "
+	            "the entire block (2/2)",
+	            last_region->prev == first_region);
 }
 
 static void
@@ -374,11 +387,11 @@ testing_finding_free_regions()
 
 	size_t var_new = (size_t) malloc(50);
 
-	ASSERT_TRUE("23. FIRST FIT: new malloc should use first empty space "
+	ASSERT_TRUE("24. FIRST FIT: new malloc should use first empty space "
 	            "big enough",
 	            var_new == var2);
 
-	ASSERT_TRUE("24. BEST FIT: new malloc should use smaller empty space "
+	ASSERT_TRUE("25. BEST FIT: new malloc should use smaller empty space "
 	            "big enough",
 	            var_new == var4);
 }
