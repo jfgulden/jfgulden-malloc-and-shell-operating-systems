@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <string.h>
+#include <errno.h>
 
 #include "malloc.h"
 #include "printfmt.h"
@@ -12,8 +14,9 @@
 #define ALIGN4(s) (((((s) -1) >> 2) << 2) + 4)
 #define REGION2PTR(r) ((r) + 1)
 #define PTR2REGION(ptr) ((struct region *) (ptr) -1)
-#define MIN_REGION_SIZE 32
+#define MIN_REGION_SIZE 40
 
+void *reallocate_to_new_region(void *ptr, size_t size, struct region *ptr_region);
 
 int amount_of_mallocs = 0;
 int amount_of_frees = 0;
@@ -38,31 +41,14 @@ try_split_region(struct region *region, size_t size)
 	region->free = false;
 }
 
-
-// new_region_block->size = size;
-// new_region_block->prev = NULL;
-// new_region_block->is_first = true;
-
-// struct region *rest_block_region =
-//         (struct region *) ((size_t) new_region_block + size +
-//                            sizeof(struct region));
-// rest_block_region->free = true;
-// rest_block_region->size = block_size - size - 2 * sizeof(struct
-// region); rest_block_region->prev = new_region_block;
-// rest_block_region->next = NULL; rest_block_region->is_first = false;
-
-
 struct region *first_region;
-// finds the next free region
-// that holds the requested size
-//
+
 static struct region *
 find_free_region(size_t size)
 {
 	if (!first_region) {
 		return NULL;
 	}
-
 
 #ifdef FIRST_FIT
 	struct region *last_region = first_region;
@@ -114,30 +100,15 @@ grow_heap(size_t size)
 	                                       MAP_PRIVATE | MAP_ANONYMOUS,
 	                                       -1,
 	                                       0);
-
+	if (new_region_block == MAP_FAILED) {
+		return NULL;
+	}
 	new_region_block->size = block_size - sizeof(struct region);
 	new_region_block->is_first = true;
 
 	new_region_block->next = NULL;
 
 	try_split_region(new_region_block, size);
-
-
-	// new_region_block->free = false;
-	// new_region_block->size = size;
-	// new_region_block->prev = NULL;
-
-	// struct region *rest_block_region =
-	//         (struct region *) ((size_t) new_region_block + size +
-	//                            sizeof(struct region));
-	// rest_block_region->free = true;
-	// rest_block_region->size = block_size - size - 2 * sizeof(struct
-	// region); rest_block_region->prev = new_region_block;
-	// rest_block_region->next = NULL; rest_block_region->is_first = false;
-
-
-	// new_region_block->next = rest_block_region;
-
 
 	if (!first_region) {
 		first_region = new_region_block;
@@ -162,13 +133,11 @@ malloc(size_t size)
 {
 	struct region *free_region;
 
-	// aligns to multiple of 4 bytes
 	size = ALIGN4(size);
 
 	if (size < MIN_REGION_SIZE)
 		size = MIN_REGION_SIZE;
 
-	// updates statistics
 	amount_of_mallocs++;
 	requested_memory += size;
 
@@ -179,37 +148,31 @@ malloc(size_t size)
 		free_region = grow_heap(size);
 	}
 	if (!free_region) {
+		errno = ENOMEM;
 		return NULL;
 	}
 
-	// Esto lo que hace es agarrar el puntero al header de la region y
-	// moverlo (en aritmetica de punteros es sumar 1), de esta forma queda
-	// apuntando a los datos que el usuario va a guardar.
 	return REGION2PTR(free_region);
 }
 
 void
 free(void *ptr)
 {
-	if (!ptr)
+	if (!ptr) {
+		errno = ENOMEM;
 		return;
-	// updates statistics
-	amount_of_frees++;
+	}
 
-	// Esto lo que hace es agarrar el ptr que recibe por parametro (que apunta
-	// a los datos que el usuario guardo) y le resta el tamaño del header de
-	// la region, de esta forma queda apuntando al header de la region. Y como
-	// el header guarda el tamaño de la region, se puede saber rapidamente cuanta memoria hay que liberar.
 	struct region *curr = PTR2REGION(ptr);
-
 
 	if (curr->free) {
 		printfmt("ERROR: free() called on already freed pointer\n");
-		assert(true);
+		errno = ENOMEM;
+		return;
 	}
 
 	curr->free = true;
-
+	amount_of_frees++;
 
 	if (curr->prev && curr->prev->free && !curr->is_first) {
 		curr->prev->size += curr->size + sizeof(struct region);
@@ -241,17 +204,62 @@ free(void *ptr)
 void *
 calloc(size_t nmemb, size_t size)
 {
-	// Your code here
+	if (nmemb == 0 || size == 0) {
+		errno = ENOMEM;
+		return NULL;
+	}
 
-	return NULL;
+	void *var = malloc(nmemb * size);
+	if (var == NULL) {
+		return NULL;
+	}
+
+	memset(var, 0, nmemb * size);
+	return var;
 }
 
 void *
 realloc(void *ptr, size_t size)
 {
-	// Your code here
+	if (!ptr)
+		return malloc(size);
 
-	return NULL;
+	if (size == 0) {
+		free(ptr);
+		return NULL;
+	}
+
+	struct region *ptr_region =
+	        (struct region *) ((size_t) ptr - sizeof(struct region));
+
+	if (ptr_region->size >= size) {
+		try_split_region(ptr_region, size);
+		return ptr;
+	}
+
+	if (!ptr_region->next || !ptr_region->next->free) {
+		return reallocate_to_new_region(ptr, size, ptr_region);
+	}
+
+	if (ptr_region->next->size + ptr_region->size + sizeof(struct region) >=
+	    size) {
+		ptr_region->size +=
+		        ptr_region->next->size + sizeof(struct region);
+		ptr_region->next = ptr_region->next->next;
+		try_split_region(ptr_region->next, size);
+		return ptr;
+	}
+
+	return reallocate_to_new_region(ptr, size, ptr_region);
+}
+
+void *
+reallocate_to_new_region(void *ptr, size_t size, struct region *ptr_region)
+{
+	void *var = malloc(size);
+	memcpy(var, ptr, ptr_region->size);
+	free(ptr);
+	return var;
 }
 
 void

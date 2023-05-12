@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #include "testlib.h"
 #include "malloc.h"
@@ -330,6 +331,7 @@ malloc_of_size_bigger_than_small_creates_a_bigger_region(void)
 	            MEDIUM == first_region->size + first_region->next->size +
 	                              2 * sizeof(struct region));
 }
+
 static void
 freeing_all_regions_of_last_block_frees_block()
 {
@@ -387,15 +389,139 @@ testing_finding_free_regions()
 
 	size_t var_new = (size_t) malloc(50);
 
-	ASSERT_TRUE("24. FIRST FIT: new malloc should use first empty space "
+	ASSERT_TRUE("23. FIRST FIT: new malloc should use first empty space "
 	            "big enough",
 	            var_new == var2);
 
-	ASSERT_TRUE("25. BEST FIT: new malloc should use smaller empty space "
+	ASSERT_TRUE("24. BEST FIT: new malloc should use smaller empty space "
 	            "big enough",
 	            var_new == var4);
 }
 
+static void
+calloc_returns_non_null_pointer(void)
+{
+	size_t var = (size_t) calloc(1, 100);
+
+	ASSERT_TRUE("25. calloc returns non null pointer", var != NULL);
+}
+
+static void
+calloc_initializes_memory_to_zero(void)
+{
+	char *var = calloc(1, 100);
+
+	int i = 0;
+	while (var[i] == 0 && i < 100) {
+		i++;
+	}
+
+	ASSERT_TRUE("26. calloc initializes memory to zero", i == 100);
+
+	free(var);
+}
+
+static void
+calloc_correct_copied_value(void)
+{
+	char *test_string = "FISOP malloc is working!";
+
+	char *var = calloc(1, 100);
+
+	strcpy(var, test_string);
+
+	ASSERT_TRUE(
+	        "27.allocated calloc memory should contain the copied value",
+	        strcmp(var, test_string) == 0);
+
+	free(var);
+}
+
+static void
+calloc_with_zero_size_returns_null_pointer(void)
+{
+	size_t var = (size_t) calloc(0, 100);
+
+	ASSERT_TRUE("28. calloc with zero size returns non null pointer",
+	            var == NULL);
+}
+
+static void
+calloc_with_zero_nmembs_returns_null_pointer(void)
+{
+	size_t var = (size_t) calloc(100, 0);
+
+	ASSERT_TRUE("29. calloc with zero nmemb returns non null pointer",
+	            var == NULL);
+}
+
+static void
+calloc_of_size_bigger_than_large_returns_null_pointer(void)
+{
+	size_t var = (size_t) calloc(1, LARGE + 1);
+
+	ASSERT_TRUE("30. calloc of size bigger than large returns null pointer",
+	            var == NULL);
+}
+
+static void
+malloc_of_size_bigger_than_large_returns_null_pointer(void)
+{
+	size_t var = (size_t) malloc(LARGE + 1);
+
+	ASSERT_TRUE("31. malloc of size bigger than large returns null pointer",
+	            var == NULL);
+}
+
+static void
+realloc_with_null_pointer_returns_non_null_pointer(void)
+{
+	size_t var = (size_t) realloc(NULL, 100);
+
+	ASSERT_TRUE("32. realloc with null pointer returns non null pointer",
+	            var != NULL);
+}
+
+static void
+realloc_with_size_zero_works_as_a_free(void)
+{
+	void *var = malloc(100);
+	void *var2 = malloc(100);
+	void *var3 = realloc(var, 0);
+	struct region *first_region =
+	        (struct region *) ((size_t) var - sizeof(struct region));
+
+	ASSERT_TRUE("33. realloc with size zero works as a free",
+	            first_region->free == true);
+}
+
+static void
+freeing_the_only_region_of_a_block_frees_the_block(void)
+{
+	struct malloc_stats stats;
+	size_t var = (size_t) malloc(100);
+
+	free(var);
+
+	get_stats(&stats);
+
+	ASSERT_TRUE("34. freeing the only region of a block frees the block",
+	            stats.blocks_counter == 0);
+}
+
+static void
+double_freeing_the_same_region_does_not_change_stats(void)
+{
+	struct malloc_stats stats;
+	size_t var = (size_t) malloc(100);
+	size_t var2 = (size_t) malloc(100);
+
+	free(var);
+	free(var);
+
+	ASSERT_TRUE("35. double freeing the same region sets errno to ENOMEM",
+	            errno == ENOMEM);
+}
 
 int
 main(void)
@@ -421,6 +547,17 @@ main(void)
 	run_test(freeing_all_regions_of_last_block_frees_block);
 	run_test(freeing_all_regions_of_middle_block_frees_block);
 	run_test(testing_finding_free_regions);
+	run_test(calloc_returns_non_null_pointer);
+	run_test(calloc_initializes_memory_to_zero);
+	run_test(calloc_correct_copied_value);
+	run_test(calloc_with_zero_size_returns_null_pointer);
+	run_test(calloc_with_zero_nmembs_returns_null_pointer);
+	run_test(calloc_of_size_bigger_than_large_returns_null_pointer);
+	run_test(malloc_of_size_bigger_than_large_returns_null_pointer);
+	run_test(realloc_with_null_pointer_returns_non_null_pointer);
+	run_test(realloc_with_size_zero_works_as_a_free);
+	run_test(freeing_the_only_region_of_a_block_frees_the_block);
+	run_test(double_freeing_the_same_region_does_not_change_stats);
 
 	return 0;
 }
