@@ -17,6 +17,7 @@
 #define MIN_REGION_SIZE 40
 
 void *reallocate_to_new_region(void *ptr, size_t size, struct region *ptr_region);
+bool ptr_comes_from_malloc(void *ptr);
 
 int amount_of_mallocs = 0;
 int amount_of_frees = 0;
@@ -30,7 +31,7 @@ try_split_region(struct region *region, size_t size)
 		return;
 
 	struct region *new_region =
-	        (struct region *) ((size_t) region + sizeof(struct region) + size);
+	        (struct region *) ((size_t) REGION2PTR(region) + size);
 	new_region->size = region->size - size - sizeof(struct region);
 	new_region->free = true;
 	new_region->next = region->next;
@@ -221,6 +222,8 @@ calloc(size_t nmemb, size_t size)
 void *
 realloc(void *ptr, size_t size)
 {
+	size = ALIGN4(size);
+
 	if (!ptr)
 		return malloc(size);
 
@@ -229,8 +232,20 @@ realloc(void *ptr, size_t size)
 		return NULL;
 	}
 
-	struct region *ptr_region =
-	        (struct region *) ((size_t) ptr - sizeof(struct region));
+	if (!ptr_comes_from_malloc(PTR2REGION(ptr))) {
+		printfmt("ERROR: realloc() called on pointer that was not "
+		         "returned by malloc()\n");
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	struct region *ptr_region = PTR2REGION(ptr);
+
+	if (ptr_region->free) {
+		printfmt("ERROR: realloc() called on freed pointer\n");
+		errno = ENOMEM;
+		return NULL;
+	}
 
 	if (ptr_region->size >= size) {
 		try_split_region(ptr_region, size);
@@ -260,6 +275,27 @@ reallocate_to_new_region(void *ptr, size_t size, struct region *ptr_region)
 	memcpy(var, ptr, ptr_region->size);
 	free(ptr);
 	return var;
+}
+
+bool
+ptr_comes_from_malloc(void *ptr)
+{
+	if (!first_region) {
+		return false;
+	}
+	struct region *region = first_region;
+	bool found = false;
+	while (region != NULL && !found) {
+		if (region == ptr) {
+			found = true;
+		}
+		region = region->next;
+	}
+
+	if (!found) {
+		return false;
+	}
+	return found;
 }
 
 void

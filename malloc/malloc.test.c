@@ -523,6 +523,88 @@ double_freeing_the_same_region_does_not_change_stats(void)
 	            errno == ENOMEM);
 }
 
+static void
+realloc_to_a_smaller_size_use_the_same_region(void)
+{
+	size_t var = (size_t) malloc(100);
+	size_t var2 = (size_t) malloc(100);
+
+	size_t var3 = (size_t) realloc(var, 50);
+
+	ASSERT_TRUE("36. realloc to a smaller size use the same region",
+	            var3 == var);
+}
+
+static void
+realloc_of_a_freed_region_returns_null_pointer(void)
+{
+	size_t var = (size_t) malloc(100);
+	size_t var2 = (size_t) malloc(100);
+
+	free(var);
+
+	size_t var3 = (size_t) realloc(var, 50);
+
+	ASSERT_TRUE("37. realloc of a freed region returns null pointer",
+	            var3 == NULL);
+}
+
+static void
+realloc_to_a_bigger_region_of_a_region_with_no_next_allocs_to_new_region(void)
+{
+	size_t var = (size_t) malloc(2008);
+	size_t var3 = (size_t) realloc(var, 2048);
+
+	ASSERT_TRUE("38. realloc to a bigger region of a region with no next "
+	            "allocs "
+	            "to new region",
+	            var3 != var);
+}
+
+static void
+realloc_to_a_bigger_region_with_next_region_not_freed_allocs_to_new_region(void)
+{
+	size_t var = (size_t) malloc(100);
+	size_t var2 = (size_t) malloc(100);
+	size_t var3 = (size_t) realloc(var, 200);
+
+	ASSERT_TRUE("39. realloc to a bigger region with next region not freed "
+	            "allocs to new region",
+	            var3 != var);
+}
+
+static void
+realloc_if_next_region_is_free_and_big_enough_use_it(void)
+{
+	size_t var = (size_t) malloc(100);
+	size_t var2 = (size_t) malloc(100);
+	size_t var3 = (size_t) malloc(100);
+
+	free(var2);
+
+	size_t var4 = (size_t) realloc(var, 200);
+
+	ASSERT_TRUE("40. realloc if next region is free and big enough use it",
+	            var4 == var);
+}
+
+static void
+realloc_if_next_region_is_free_but_not_big_enough_dont_use_it(void)
+{
+	size_t var = (size_t) malloc(100);
+	size_t var2 = (size_t) malloc(100);
+	size_t var3 = (size_t) malloc(100);
+
+	free(var2);
+
+	size_t var4 = (size_t) realloc(var, 300);
+
+	ASSERT_TRUE(
+	        "41. realloc if next region is free but not big enough dont "
+	        "use it",
+	        var4 != var);
+}
+
 int
 main(void)
 {
@@ -558,6 +640,11 @@ main(void)
 	run_test(realloc_with_size_zero_works_as_a_free);
 	run_test(freeing_the_only_region_of_a_block_frees_the_block);
 	run_test(double_freeing_the_same_region_does_not_change_stats);
-
+	run_test(realloc_to_a_smaller_size_use_the_same_region);
+	run_test(realloc_of_a_freed_region_returns_null_pointer);
+	run_test(realloc_to_a_bigger_region_of_a_region_with_no_next_allocs_to_new_region);
+	run_test(realloc_to_a_bigger_region_with_next_region_not_freed_allocs_to_new_region);
+	run_test(realloc_if_next_region_is_free_and_big_enough_use_it);
+	run_test(realloc_if_next_region_is_free_but_not_big_enough_dont_use_it);
 	return 0;
 }
