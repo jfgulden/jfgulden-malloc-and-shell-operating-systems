@@ -16,6 +16,7 @@
 #define PTR2REGION(ptr) ((struct region *) (ptr) -1)
 #define MIN_REGION_SIZE 40
 
+void try_split_region(struct region *region, size_t size);
 void *reallocate_to_new_region(void *ptr, size_t size, struct region *ptr_region);
 bool ptr_comes_from_malloc(void *ptr);
 

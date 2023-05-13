@@ -12,9 +12,9 @@ successful_malloc_returns_non_null_pointer(void)
 {
 	char *var = malloc(100);
 
-	ASSERT_TRUE("1.successful malloc returns non null pointer", var != NULL);
+	ASSERT_TRUE("1.successful malloc returns non null pointer", var);
 
-	free(var);
+	free((void*)var);
 }
 
 static void
@@ -29,7 +29,7 @@ correct_copied_value(void)
 	ASSERT_TRUE("2.allocated memory should contain the copied value",
 	            strcmp(var, test_string) == 0);
 
-	free(var);
+	free((void*)var);
 }
 
 
@@ -40,7 +40,7 @@ correct_amount_of_mallocs(void)
 
 	char *var = malloc(100);
 
-	free(var);
+	free((void*)var);
 
 	get_stats(&stats);
 
@@ -54,7 +54,7 @@ correct_amount_of_frees(void)
 
 	char *var = malloc(100);
 
-	free(var);
+	free((void*)var);
 
 	get_stats(&stats);
 
@@ -68,7 +68,7 @@ correct_amount_of_requested_memory(void)
 
 	char *var = malloc(99);
 
-	free(var);
+	free((void*)var);
 
 	get_stats(&stats);
 
@@ -94,8 +94,8 @@ correct_copied_values(void)
 	            "copied value",
 	            strcmp(var2, test_string2) == 0);
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 }
 
 static void
@@ -112,7 +112,7 @@ malloc_bigger_than_block(void)
 	ASSERT_TRUE("8.malloc bigger than block creates a MEDIUM block",
 	            first_block_size == MEDIUM);
 
-	free(var);
+	free((void*)var);
 }
 
 static void
@@ -135,8 +135,8 @@ not_first_malloc_bigger_than_block(void)
 	            "block after the first SMALL block",
 	            first_block_size == SMALL && second_block_size == MEDIUM);
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 }
 
 static void
@@ -147,8 +147,6 @@ sum_of_malloc_sizes_bigger_than_block(void)
 
 	struct region *first_region =
 	        (struct region *) ((size_t) var - sizeof(struct region));
-	struct region *var2_region =
-	        (struct region *) ((size_t) var2 - sizeof(struct region));
 
 	size_t first_block_size = first_region->size + first_region->next->size +
 	                          2 * sizeof(struct region);
@@ -167,8 +165,8 @@ sum_of_malloc_sizes_bigger_than_block(void)
 	            "block after the first SMALL block (2/2)",
 	            second_block_size == SMALL);
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 }
 
 static void
@@ -186,8 +184,8 @@ ptr_to_malloc_returns_correct_position(void)
 	            var + first_region->size + 1 * sizeof(struct region) == var2);
 
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 }
 
 static void
@@ -197,7 +195,7 @@ use_freed_region(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var2);
+	free((void*)var2);
 
 	size_t var4 = (size_t) malloc(100);
 
@@ -214,8 +212,8 @@ coalesing_with_previous_region(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 
 	size_t var4 = (size_t) malloc(150);
 
@@ -232,8 +230,8 @@ coalesing_with_previous_region_also_includes_region_header(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 
 	size_t var4 = (size_t) malloc(232);
 
@@ -250,8 +248,8 @@ cant_use_freed_region_if_malloc_size_is_bigger(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var);
-	free(var2);
+	free((void*)var);
+	free((void*)var2);
 
 	size_t var4 = (size_t) malloc(200 + sizeof(struct region) + 1);
 
@@ -268,8 +266,8 @@ coalesing_with_following_region(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var2);
-	free(var);
+	free((void*)var2);
+	free((void*)var);
 
 	size_t var4 = (size_t) malloc(150);
 
@@ -286,8 +284,8 @@ coalesing_with_following_region_also_includes_region_header(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var2);
-	free(var);
+	free((void*)var2);
+	free((void*)var);
 
 	size_t var4 = (size_t) malloc(232);
 
@@ -304,11 +302,10 @@ malloc_of_a_small_enough_space_allows_splitting(void)
 	size_t var2 = (size_t) malloc(100);
 	size_t var3 = (size_t) malloc(100);
 
-	free(var2);
-	free(var);
+	free((void*)var2);
+	free((void*)var);
 
 	size_t var4 = (size_t) malloc(125);
-
 	size_t var5 = (size_t) malloc(30);
 
 	ASSERT_TRUE("19.if a big enough space is found for the next "
@@ -339,7 +336,7 @@ freeing_all_regions_of_last_block_frees_block()
 	char *var1 = malloc(2048 - sizeof(struct region));
 	char *var2 = malloc(100);
 
-	free(var2);
+	free((void*)var2);
 	get_stats(&stats);
 
 	ASSERT_TRUE("21. freeing all regions of the last block frees the "
@@ -361,7 +358,7 @@ freeing_all_regions_of_middle_block_frees_block()
 	        (struct region *) (var3 - sizeof(struct region));
 
 
-	free(var2);
+	free((void*)var2);
 
 	ASSERT_TRUE("22. freeing all regions of a block in the middle "
 	            "frees "
@@ -384,8 +381,8 @@ testing_finding_free_regions()
 	size_t var4 = (size_t) malloc(100);
 	size_t var5 = (size_t) malloc(100);
 
-	free(var2);
-	free(var4);
+	free((void*)var2);
+	free((void*)var4);
 
 	size_t var_new = (size_t) malloc(50);
 
@@ -403,7 +400,7 @@ calloc_returns_non_null_pointer(void)
 {
 	size_t var = (size_t) calloc(1, 100);
 
-	ASSERT_TRUE("25. calloc returns non null pointer", var != NULL);
+	ASSERT_TRUE("25. calloc returns non null pointer", var);
 }
 
 static void
@@ -418,7 +415,7 @@ calloc_initializes_memory_to_zero(void)
 
 	ASSERT_TRUE("26. calloc initializes memory to zero", i == 100);
 
-	free(var);
+	free((void*)var);
 }
 
 static void
@@ -434,7 +431,7 @@ calloc_correct_copied_value(void)
 	        "27.allocated calloc memory should contain the copied value",
 	        strcmp(var, test_string) == 0);
 
-	free(var);
+	free((void*)var);
 }
 
 static void
@@ -443,7 +440,7 @@ calloc_with_zero_size_returns_null_pointer(void)
 	size_t var = (size_t) calloc(0, 100);
 
 	ASSERT_TRUE("28. calloc with zero size returns non null pointer",
-	            var == NULL);
+	            !var);
 }
 
 static void
@@ -452,7 +449,7 @@ calloc_with_zero_nmembs_returns_null_pointer(void)
 	size_t var = (size_t) calloc(100, 0);
 
 	ASSERT_TRUE("29. calloc with zero nmemb returns non null pointer",
-	            var == NULL);
+	            !var);
 }
 
 static void
@@ -461,7 +458,7 @@ calloc_of_size_bigger_than_large_returns_null_pointer(void)
 	size_t var = (size_t) calloc(1, LARGE + 1);
 
 	ASSERT_TRUE("30. calloc of size bigger than large returns null pointer",
-	            var == NULL);
+	            !var);
 }
 
 static void
@@ -470,7 +467,7 @@ malloc_of_size_bigger_than_large_returns_null_pointer(void)
 	size_t var = (size_t) malloc(LARGE + 1);
 
 	ASSERT_TRUE("31. malloc of size bigger than large returns null pointer",
-	            var == NULL);
+	            !var);
 }
 
 static void
@@ -479,7 +476,7 @@ realloc_with_null_pointer_returns_non_null_pointer(void)
 	size_t var = (size_t) realloc(NULL, 100);
 
 	ASSERT_TRUE("32. realloc with null pointer returns non null pointer",
-	            var != NULL);
+	            var);
 }
 
 static void
@@ -501,7 +498,7 @@ freeing_the_only_region_of_a_block_frees_the_block(void)
 	struct malloc_stats stats;
 	size_t var = (size_t) malloc(100);
 
-	free(var);
+	free((void*)var);
 
 	get_stats(&stats);
 
@@ -512,12 +509,11 @@ freeing_the_only_region_of_a_block_frees_the_block(void)
 static void
 double_freeing_the_same_region_does_not_change_stats(void)
 {
-	struct malloc_stats stats;
 	size_t var = (size_t) malloc(100);
 	size_t var2 = (size_t) malloc(100);
 
-	free(var);
-	free(var);
+	free((void*)var);
+	free((void*)var);
 
 	ASSERT_TRUE("35. double freeing the same region sets errno to ENOMEM",
 	            errno == ENOMEM);
